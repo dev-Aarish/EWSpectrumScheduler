@@ -188,3 +188,8 @@ body {
 .pulse-indicator {
   animation: pulse 2s ease-in-out infinite;
 }
+
+/* Hide Next.js dev tools indicator */
+nextjs-portal {
+  display: none !important;
+}
