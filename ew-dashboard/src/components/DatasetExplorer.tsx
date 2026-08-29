@@ -8,11 +8,26 @@ interface TestStat {
   n_pulses: number;
   n_emitters: number;
   n_types: number;
-  mean_Frequency: number;
-  mean_Amplitude: number;
-  std_Frequency: number;
+  min_ToA: number;
   min_Frequency: number;
+  min_PulseWidth: number;
+  min_AoA: number;
+  min_Amplitude: number;
+  max_ToA: number;
   max_Frequency: number;
+  max_PulseWidth: number;
+  max_AoA: number;
+  max_Amplitude: number;
+  mean_ToA: number;
+  mean_Frequency: number;
+  mean_PulseWidth: number;
+  mean_AoA: number;
+  mean_Amplitude: number;
+  std_ToA: number;
+  std_Frequency: number;
+  std_PulseWidth: number;
+  std_AoA: number;
+  std_Amplitude: number;
 }
 
 interface DatasetExplorerProps {
@@ -127,16 +142,64 @@ export default function DatasetExplorer({
                     Emitters <SortIcon col="n_emitters" />
                   </th>
                   <th
+                    onClick={() => handleSort("n_types")}
+                    className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
+                  >
+                    Types <SortIcon col="n_types" />
+                  </th>
+                  <th
                     onClick={() => handleSort("mean_Frequency")}
                     className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
                   >
                     Mean Freq <SortIcon col="mean_Frequency" />
                   </th>
                   <th
+                    onClick={() => handleSort("std_Frequency")}
+                    className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
+                  >
+                    Std Freq <SortIcon col="std_Frequency" />
+                  </th>
+                  <th
+                    onClick={() => handleSort("min_PulseWidth")}
+                    className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
+                  >
+                    Min PW <SortIcon col="min_PulseWidth" />
+                  </th>
+                  <th
+                    onClick={() => handleSort("max_PulseWidth")}
+                    className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
+                  >
+                    Max PW <SortIcon col="max_PulseWidth" />
+                  </th>
+                  <th
+                    onClick={() => handleSort("min_AoA")}
+                    className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
+                  >
+                    Min AoA <SortIcon col="min_AoA" />
+                  </th>
+                  <th
+                    onClick={() => handleSort("max_AoA")}
+                    className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
+                  >
+                    Max AoA <SortIcon col="max_AoA" />
+                  </th>
+                  <th
                     onClick={() => handleSort("mean_Amplitude")}
                     className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
                   >
                     Mean Amp <SortIcon col="mean_Amplitude" />
+                  </th>
+                  <th
+                    onClick={() => handleSort("min_Amplitude")}
+                    className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
+                  >
+                    Min Amp <SortIcon col="min_Amplitude" />
+                  </th>
+                  <th
+                    onClick={() => handleSort("max_Amplitude")}
+                    className="px-2 py-1.5 text-right text-[#5C636D] font-medium cursor-pointer hover:text-[#9BA3AD] transition-colors"
+                  >
+                    Max Amp <SortIcon col="max_Amplitude" />
                   </th>
                 </tr>
               </thead>
@@ -162,10 +225,34 @@ export default function DatasetExplorer({
                         {row.n_emitters}
                       </td>
                       <td className="px-2 py-1.5 text-right tabular-nums">
+                        {row.n_types}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
                         {row.mean_Frequency.toFixed(0)}
                       </td>
                       <td className="px-2 py-1.5 text-right tabular-nums">
+                        {row.std_Frequency.toFixed(0)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {row.min_PulseWidth.toFixed(3)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {row.max_PulseWidth.toFixed(1)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {row.min_AoA.toFixed(1)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {row.max_AoA.toFixed(1)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
                         {row.mean_Amplitude.toFixed(1)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {row.min_Amplitude.toFixed(1)}
+                      </td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {row.max_Amplitude.toFixed(1)}
                       </td>
                     </tr>
                   );

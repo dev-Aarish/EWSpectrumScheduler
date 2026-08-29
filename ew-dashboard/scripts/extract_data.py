@@ -133,10 +133,12 @@ def extract_config_data(h5_path: str) -> dict:
         }
 
 
-def extract_all_configs(split: str = "val_scan", max_configs: int = 5) -> list:
-    """Extract data from multiple config files."""
+def extract_all_configs(split: str = "val_scan", max_configs: int = 0) -> list:
+    """Extract data from multiple config files. max_configs=0 means all."""
     scan_dir = SCAN_DIR / split
-    h5_files = sorted([f for f in scan_dir.glob("config_*.h5")])[:max_configs]
+    h5_files = sorted([f for f in scan_dir.glob("config_*.h5")])
+    if max_configs > 0:
+        h5_files = h5_files[:max_configs]
     
     configs = []
     for h5_file in h5_files:
@@ -170,7 +172,7 @@ def main():
     print("=== Extracting EW Scan Data ===")
     
     # Extract validation configs
-    configs = extract_all_configs("val_scan", max_configs=5)
+    configs = extract_all_configs("val_scan")
     
     # Save individual configs
     for config in configs:

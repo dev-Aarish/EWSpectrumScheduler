@@ -18,19 +18,22 @@ def extract_csv_stats():
         rows = list(reader)
     
     # Convert to numeric types
+    int_fields = ["id", "n_pulses", "n_emitters", "n_types"]
+    float_fields = [
+        "min_ToA", "min_Frequency", "min_PulseWidth", "min_AoA", "min_Amplitude",
+        "max_ToA", "max_Frequency", "max_PulseWidth", "max_AoA", "max_Amplitude",
+        "mean_ToA", "mean_Frequency", "mean_PulseWidth", "mean_AoA", "mean_Amplitude",
+        "std_ToA", "std_Frequency", "std_PulseWidth", "std_AoA", "std_Amplitude",
+    ]
+
     processed = []
     for row in rows:
-        processed.append({
-            "id": int(row["id"]),
-            "n_pulses": int(row["n_pulses"]),
-            "n_emitters": int(row["n_emitters"]),
-            "n_types": int(row["n_types"]),
-            "mean_Frequency": float(row["mean_Frequency"]),
-            "mean_Amplitude": float(row["mean_Amplitude"]),
-            "std_Frequency": float(row["std_Frequency"]),
-            "min_Frequency": float(row["min_Frequency"]),
-            "max_Frequency": float(row["max_Frequency"]),
-        })
+        entry = {}
+        for field in int_fields:
+            entry[field] = int(row[field])
+        for field in float_fields:
+            entry[field] = float(row[field])
+        processed.append(entry)
     
     output_path = OUTPUT_DIR / "test_stats.json"
     with open(output_path, 'w') as f:

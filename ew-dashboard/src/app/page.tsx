@@ -55,11 +55,26 @@ interface TestStat {
   n_pulses: number;
   n_emitters: number;
   n_types: number;
-  mean_Frequency: number;
-  mean_Amplitude: number;
-  std_Frequency: number;
+  min_ToA: number;
   min_Frequency: number;
+  min_PulseWidth: number;
+  min_AoA: number;
+  min_Amplitude: number;
+  max_ToA: number;
   max_Frequency: number;
+  max_PulseWidth: number;
+  max_AoA: number;
+  max_Amplitude: number;
+  mean_ToA: number;
+  mean_Frequency: number;
+  mean_PulseWidth: number;
+  mean_AoA: number;
+  mean_Amplitude: number;
+  std_ToA: number;
+  std_Frequency: number;
+  std_PulseWidth: number;
+  std_AoA: number;
+  std_Amplitude: number;
 }
 
 export default function Dashboard() {
