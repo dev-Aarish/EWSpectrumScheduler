@@ -1,0 +1,190 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Base surface colors */
+  --bg-canvas: #0B0D0F;
+  --bg-panel: #12151A;
+  --bg-panel-raised: #181C22;
+  --bg-inset: #0E1013;
+  --border-subtle: #22262D;
+  --border-strong: #343A42;
+  
+  /* Text colors */
+  --text-primary: #E8EAED;
+  --text-secondary: #9BA3AD;
+  --text-tertiary: #5C636D;
+  
+  /* Accent - signal amber */
+  --accent: #D98E33;
+  --accent-dim: #8A5E24;
+  --accent-glow: rgba(217, 142, 51, 0.15);
+  
+  /* Semantic states */
+  --transmission-hit: #C4523B;
+  --non-transmission: #3A3F46;
+  --correct-prediction: #5E8C6A;
+  --false-alarm: #B8763E;
+  --threat-priority: #A13A34;
+  
+  /* Typography */
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', 'Consolas', monospace;
+}
+
+@theme inline {
+  --color-background: var(--bg-canvas);
+  --color-foreground: var(--text-primary);
+  --color-panel: var(--bg-panel);
+  --color-panel-raised: var(--bg-panel-raised);
+  --color-inset: var(--bg-inset);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-glow: var(--accent-glow);
+  --color-transmission: var(--transmission-hit);
+  --color-non-transmission: var(--non-transmission);
+  --color-correct: var(--correct-prediction);
+  --color-false-alarm: var(--false-alarm);
+  --color-threat: var(--threat-priority);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-inset);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Monospace numeric styling */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section labels - all caps with tracking */
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+/* Instrument panel glow effect */
+.instrument-glow {
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+/* Status dot */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot-active {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+.status-dot-transmission {
+  background: var(--transmission-hit);
+}
+
+.status-dot-idle {
+  background: var(--non-transmission);
+}
+
+/* Hairline border panels */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+}
+
+.panel-raised {
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Inset area */
+.inset {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Metric readout */
+.metric-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.metric-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+/* Scanner line animation */
+@keyframes scanLine {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(100%); }
+}
+
+.scan-line {
+  animation: scanLine 2s linear infinite;
+}
+
+/* Pulse indicator */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pulse-indicator {
+  animation: pulse 2s ease-in-out infinite;
+}
