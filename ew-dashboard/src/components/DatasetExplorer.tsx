@@ -56,7 +56,17 @@ export default function DatasetExplorer({
   const filtered = useMemo(() => {
     let data = [...testStats];
     if (search) {
-      data = data.filter((d) => d.id.toString().includes(search));
+      const q = search.toLowerCase();
+      data = data.filter(
+        (d) =>
+          d.id.toString().includes(q) ||
+          d.n_emitters.toString().includes(q) ||
+          d.n_types.toString().includes(q) ||
+          d.mean_Frequency.toFixed(0).includes(q) ||
+          d.min_Frequency.toFixed(0).includes(q) ||
+          d.max_Frequency.toFixed(0).includes(q) ||
+          d.n_pulses.toString().includes(q)
+      );
     }
     data.sort((a, b) => {
       const aVal = a[sortKey];
@@ -115,7 +125,7 @@ export default function DatasetExplorer({
               />
               <input
                 type="text"
-                placeholder="Filter by ID..."
+                placeholder="Search by ID, emitters, types, freq, pulses..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono pl-7 pr-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50 placeholder:text-[#5C636D]"
