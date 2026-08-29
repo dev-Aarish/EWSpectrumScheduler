@@ -44,10 +44,14 @@ export default function ScanTimeline({
   }, [scanHistory, waterfall]);
 
   const totalSteps = steps.length;
-  const barWidth = Math.max(2, (dimensions.width - 16) / totalSteps - 1);
+  const containerHeight = dimensions.height || 64;
+  // Bars container has px-2 (4px each side) inside the ref container
+  const barsPadding = 8;
+  const barsWidth = Math.max(0, dimensions.width - barsPadding);
+  const barWidth = totalSteps > 0 ? barsWidth / totalSteps : 0;
 
   return (
-    <div className="bg-[#12151A] border-t border-[#22262D]">
+    <div className="bg-[#12151A] border-t border-[#22262D] flex-shrink-0 h-20 overflow-hidden">
       <div className="px-3 py-1.5 border-b border-[#22262D] flex items-center justify-between">
         <span className="section-label">Scan History Timeline</span>
         <div className="flex items-center gap-3 text-[9px] font-mono text-[#5C636D]">
@@ -71,21 +75,21 @@ export default function ScanTimeline({
         onClick={(e) => {
           if (!containerRef.current) return;
           const rect = containerRef.current.getBoundingClientRect();
-          const x = e.clientX - rect.left - 8;
-          const step = Math.round((x / (rect.width - 16)) * totalSteps);
+          const x = e.clientX - rect.left;
+          const step = Math.round((x / barsWidth) * totalSteps);
           onStepClick(Math.max(0, Math.min(totalSteps - 1, step)));
         }}
         onMouseMove={(e) => {
           if (!containerRef.current) return;
           const rect = containerRef.current.getBoundingClientRect();
-          const x = e.clientX - rect.left - 8;
-          const step = Math.round((x / (rect.width - 16)) * totalSteps);
+          const x = e.clientX - rect.left;
+          const step = Math.round((x / barsWidth) * totalSteps);
           setHoverStep(Math.max(0, Math.min(totalSteps - 1, step)));
         }}
         onMouseLeave={() => setHoverStep(null)}
       >
         {/* Bars */}
-        <div className="flex items-end gap-px h-full px-2">
+        <div className="relative h-full px-2">
           {steps.map((s, i) => {
             const isActive = i === currentStep;
             const isHovered = i === hoverStep;
@@ -95,21 +99,21 @@ export default function ScanTimeline({
             else if (isHit) bgColor = "#5E8C6A";
             else bgColor = "#3A3F46";
 
-            const height = Math.max(
-              4,
-              (s.band / nBands) * 100
-            );
+            const barH = Math.max(4, (s.band / nBands) * containerHeight);
 
             return (
               <div
                 key={i}
-                className="flex-1 relative group"
-                style={{ minWidth: `${barWidth}px` }}
+                className="absolute bottom-0 group"
+                style={{
+                  left: `${i * barWidth}px`,
+                  width: `${barWidth}px`,
+                }}
               >
                 <div
                   className="w-full transition-all duration-75"
                   style={{
-                    height: `${height}%`,
+                    height: `${barH}px`,
                     backgroundColor: bgColor,
                     opacity: isHovered ? 1 : isActive ? 1 : 0.7,
                     borderTop: isActive ? "1px solid #D98E33" : "none",
@@ -136,7 +140,7 @@ export default function ScanTimeline({
           <div
             className="absolute top-0 bottom-0 w-px bg-[#D98E33] pointer-events-none"
             style={{
-              left: `${8 + (currentStep / totalSteps) * (dimensions.width - 16)}px`,
+              left: `${(currentStep / totalSteps) * barsWidth}px`,
             }}
           />
         )}

@@ -161,13 +161,34 @@ def extract_config_data(h5_path: str) -> dict:
                     "frequency_range": [0.0, 0.0]
                 })
         
-        # Generate simulated scheduler decisions (for demo)
+        # Compute band activity scores for heuristic scheduler
+        band_pulse_counts = np.array([band_stats[b]["pulse_count"] for b in range(n_bands)])
+        total_pulses = band_pulse_counts.sum()
+        if total_pulses > 0:
+            band_activity_probs = band_pulse_counts / total_pulses
+        else:
+            band_activity_probs = np.ones(n_bands) / n_bands
+        
+        # Generate scheduler decisions using activity-weighted heuristic
         scheduler_decisions = []
         scan_history = []
-        for t in range(min(50, n_time_bins)):
-            band_choice = np.random.randint(0, n_bands)
-            confidence = float(np.random.uniform(0.3, 0.95))
-            predicted_reward = float(np.random.uniform(-1.0, 2.0))
+        last_scanned = np.full(n_bands, -n_time_bins)  # Track when each band was last scanned
+        n_decisions = n_time_bins
+        
+        for t in range(n_decisions):
+            # Score bands: activity probability + recency bonus for unscanned bands
+            time_since_scan = t - last_scanned
+            recency_bonus = np.clip(time_since_scan / n_time_bins, 0, 1)
+            scores = 0.7 * band_activity_probs + 0.3 * recency_bonus
+            scores = scores / scores.sum()  # Normalize to probabilities
+            
+            # Choose band based on weighted probabilities
+            band_choice = np.random.choice(n_bands, p=scores)
+            last_scanned[band_choice] = t
+            
+            # Compute confidence based on activity (more active = higher confidence)
+            confidence = float(np.clip(band_activity_probs[band_choice] * n_bands * 0.8 + 0.2, 0.3, 0.95))
+            predicted_reward = float(np.clip(band_activity_probs[band_choice] * n_bands, -1.0, 2.0))
             actual = int(waterfall[band_choice, t])
             scheduler_decisions.append({
                 "time_step": t,
