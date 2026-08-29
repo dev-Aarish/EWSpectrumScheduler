@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Radio,
   Activity,
@@ -27,10 +27,28 @@ export default function StatusBar({
   totalBands,
 }: StatusBarProps) {
   const [time, setTime] = useState(new Date());
+  const [fps, setFps] = useState(0);
+  const frameCount = useRef(0);
+  const lastTime = useRef(performance.now());
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let rafId: number;
+    const tick = (now: number) => {
+      frameCount.current++;
+      if (now - lastTime.current >= 1000) {
+        setFps(frameCount.current);
+        frameCount.current = 0;
+        lastTime.current = now;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   const modeConfig = {
@@ -103,7 +121,7 @@ export default function StatusBar({
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1 text-[#5C636D]">
           <Cpu size={9} />
-          <span className="tabular-nums text-[9px]">60 FPS</span>
+          <span className="tabular-nums text-[9px]">{fps} FPS</span>
         </div>
 
         <div className="flex items-center gap-1 text-[#9BA3AD] px-2 py-0.5 bg-[#0E1013] border border-[#22262D] rounded">
