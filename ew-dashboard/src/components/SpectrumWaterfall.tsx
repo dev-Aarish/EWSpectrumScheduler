@@ -2,6 +2,15 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 
+interface BandStat {
+  band_id: number;
+  dwell_centre_mhz: number;
+  pulse_count: number;
+  n_emitters: number;
+  mean_amplitude: number;
+  frequency_range: number[];
+}
+
 interface SpectrumWaterfallProps {
   waterfall: number[][];
   waterfallLabels: number[][];
@@ -11,6 +20,7 @@ interface SpectrumWaterfallProps {
   scanHistory: number[];
   dwellCentres: number[];
   currentScanStep: number;
+  bandStats?: BandStat[];
   onBandClick?: (band: number) => void;
 }
 
@@ -23,6 +33,7 @@ export default function SpectrumWaterfall({
   scanHistory,
   dwellCentres,
   currentScanStep,
+  bandStats,
   onBandClick,
 }: SpectrumWaterfallProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -304,40 +315,86 @@ export default function SpectrumWaterfall({
       />
 
       {/* Floating tooltip */}
-      {hoveredCell && (
-        <div
-          className="absolute bg-[#181C22] border border-[#343A42] px-2.5 py-1.5 text-[10px] font-mono pointer-events-none z-20"
-          style={{
-            left: Math.min(hoveredCell.x + 12, dimensions.width - 180),
-            top: Math.max(hoveredCell.y - 50, 4),
-          }}
-        >
-          <div className="text-[#E8EAED] font-medium">
-            Band {hoveredCell.band} | {dwellCentres[hoveredCell.band]?.toFixed(0)} MHz
-          </div>
-          <div className="text-[#9BA3AD] mt-0.5 space-y-0.5">
-            <div>
-              Pulses:{" "}
-              <span className="text-[#D98E33] tabular-nums">
-                {waterfall[hoveredCell.band]?.filter((v) => v === 1).length || 0}
-              </span>
+      {hoveredCell && (() => {
+        const band = hoveredCell.band;
+        const stats = bandStats?.[band];
+        const bandWaterfall = waterfall[band] || [];
+        const pulseCount = bandWaterfall.filter((v) => v === 1).length;
+        const isActive = bandWaterfall.includes(1);
+        const freqRange = stats?.frequency_range;
+        const sparkData = bandWaterfall.slice(0, 80);
+        const sparkWidth = 120;
+        const sparkHeight = 16;
+        const sparkPoints = sparkData.length > 1
+          ? sparkData.map((v, i) => {
+              const x = (i / (sparkData.length - 1)) * sparkWidth;
+              const y = v === 1 ? 2 : sparkHeight - 2;
+              return `${x},${y}`;
+            }).join(" ")
+          : "";
+
+        return (
+          <div
+            className="absolute bg-[#181C22] border border-[#343A42] px-3 py-2 text-[10px] font-mono pointer-events-none z-20 min-w-[180px]"
+            style={{
+              left: Math.min(hoveredCell.x + 12, dimensions.width - 210),
+              top: Math.max(hoveredCell.y - 80, 4),
+            }}
+          >
+            <div className="text-[#E8EAED] font-medium text-[11px]">
+              Band {band} &middot; {dwellCentres[band]?.toFixed(0)} MHz
             </div>
-            <div>
-              Status:{" "}
-              <span
-                className={
-                  waterfall[hoveredCell.band]?.includes(1)
-                    ? "text-[#C4523B]"
-                    : "text-[#5C636D]"
-                }
-              >
-                {waterfall[hoveredCell.band]?.includes(1) ? "Active" : "Idle"}
-              </span>
+            <div className="text-[#9BA3AD] mt-1 space-y-0.5">
+              <div className="flex justify-between">
+                <span>Pulses</span>
+                <span className="text-[#D98E33] tabular-nums">{pulseCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Status</span>
+                <span className={isActive ? "text-[#C4523B]" : "text-[#5C636D]"}>
+                  {isActive ? "Active" : "Idle"}
+                </span>
+              </div>
+              {stats && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Emitters</span>
+                    <span className="text-[#E8EAED] tabular-nums">{stats.n_emitters}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Mean Amp</span>
+                    <span className="text-[#E8EAED] tabular-nums">
+                      {stats.mean_amplitude.toFixed(1)} dB
+                    </span>
+                  </div>
+                  {freqRange && freqRange.length === 2 && (
+                    <div className="flex justify-between">
+                      <span>Freq Range</span>
+                      <span className="text-[#E8EAED] tabular-nums">
+                        {freqRange[0].toFixed(0)}-{freqRange[1].toFixed(0)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
+            {sparkPoints && (
+              <div className="mt-1.5 pt-1 border-t border-[#2A2E35]">
+                <svg width={sparkWidth} height={sparkHeight} className="block">
+                  <polyline
+                    points={sparkPoints}
+                    fill="none"
+                    stroke={isActive ? "#C4523B" : "#3A3F46"}
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            )}
+            <div className="text-[#5C636D] text-[9px] mt-1">Click to inspect</div>
           </div>
-          <div className="text-[#5C636D] text-[9px] mt-1">Click to inspect</div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -313,6 +313,8 @@ export default function Dashboard() {
             scanHistory={configData.scan_history}
             dwellCentres={configData.dwell_centres_mhz}
             currentScanStep={scanStep}
+            bandStats={configData.band_stats}
+            onBandClick={setSelectedBand}
           />
 
           {/* Scan timeline */}
