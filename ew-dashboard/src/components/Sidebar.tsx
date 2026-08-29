@@ -212,17 +212,16 @@ export default function Sidebar({
                 <label className="block text-[10px] text-[#5C636D] uppercase tracking-wider mb-1">
                   Frequency Range
                 </label>
-                <div className="flex gap-1">
+                <div className="flex flex-col gap-1">
                   <input
                     type="number"
                     defaultValue={freqRange[0]}
-                    className="flex-1 bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
+                    className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
                   />
-                  <span className="text-[#5C636D] text-[11px] self-center">-</span>
                   <input
                     type="number"
                     defaultValue={freqRange[1]}
-                    className="flex-1 bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
+                    className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
                   />
                 </div>
               </div>
