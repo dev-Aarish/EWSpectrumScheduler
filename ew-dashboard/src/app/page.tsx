@@ -349,7 +349,7 @@ export default function Dashboard() {
             </div>
 
             {/* Tab content */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden flex flex-col">
               {bottomTab === "log" && (
                 <DecisionLog decisions={configData.scheduler_decisions} maxVisible={6} />
               )}

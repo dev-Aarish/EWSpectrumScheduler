@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, ArrowUpDown, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Search,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 
 interface TestStat {
   id: number;
@@ -81,10 +86,10 @@ export default function DatasetExplorer({
   );
 
   return (
-    <div className="bg-[#12151A] border border-[#22262D] flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="px-3 py-2 border-b border-[#22262D] flex items-center justify-between hover:bg-[#181C22] transition-colors"
+        className="px-3 py-1.5 border-b border-[#22262D] flex items-center justify-between hover:bg-[#181C22] transition-colors shrink-0"
       >
         <span className="section-label">Dataset Explorer</span>
         <div className="flex items-center gap-2">
@@ -102,7 +107,7 @@ export default function DatasetExplorer({
       {isExpanded && (
         <>
           {/* Search */}
-          <div className="px-3 py-2 border-b border-[#22262D]">
+          <div className="px-3 py-1.5 border-b border-[#22262D] shrink-0">
             <div className="relative">
               <Search
                 size={12}
@@ -117,11 +122,10 @@ export default function DatasetExplorer({
               />
             </div>
           </div>
-
-          {/* Table */}
-          <div className="overflow-auto max-h-48">
+          {/* Scrollable table area */}
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-[10px] font-mono">
-              <thead>
+              <thead className="sticky top-0 bg-[#12151A] z-10">
                 <tr className="border-b border-[#22262D]">
                   <th
                     onClick={() => handleSort("id")}
@@ -204,7 +208,7 @@ export default function DatasetExplorer({
                 </tr>
               </thead>
               <tbody>
-                {filtered.slice(0, 20).map((row) => {
+                {filtered.map((row) => {
                   const configId = `config_${row.id}`;
                   const isActive = currentConfigId === configId;
                   return (
