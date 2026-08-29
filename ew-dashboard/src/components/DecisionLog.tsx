@@ -19,7 +19,7 @@ interface DecisionLogProps {
 
 export default function DecisionLog({
   decisions,
-  maxVisible = 6,
+  maxVisible,
 }: DecisionLogProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<"all" | "hits" | "misses">("all");
@@ -30,7 +30,7 @@ export default function DecisionLog({
     return true;
   });
 
-  const visibleDecisions = filteredDecisions.slice(-maxVisible);
+  const visibleDecisions = maxVisible ? filteredDecisions.slice(-maxVisible) : filteredDecisions;
 
   const hits = decisions.filter((d) => d.actual_detection).length;
   const misses = decisions.filter((d) => !d.actual_detection).length;
