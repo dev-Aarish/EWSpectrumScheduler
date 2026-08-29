@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Terminal } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Terminal, Filter } from "lucide-react";
 
 interface Decision {
   time_step: number;
@@ -19,29 +19,54 @@ interface DecisionLogProps {
 
 export default function DecisionLog({
   decisions,
-  maxVisible = 8,
+  maxVisible = 6,
 }: DecisionLogProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState<"all" | "hits" | "misses">("all");
+
+  const filteredDecisions = decisions.filter((d) => {
+    if (filter === "hits") return d.actual_detection;
+    if (filter === "misses") return !d.actual_detection;
+    return true;
+  });
+
+  const visibleDecisions = filteredDecisions.slice(-maxVisible);
+
+  const hits = decisions.filter((d) => d.actual_detection).length;
+  const misses = decisions.filter((d) => !d.actual_detection).length;
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [decisions]);
-
-  const visibleDecisions = decisions.slice(-maxVisible);
+  }, [filteredDecisions]);
 
   return (
-    <div className="bg-[#12151A] border-t border-[#22262D] h-32 flex flex-col">
-      {/* Header */}
-      <div className="px-3 py-1.5 border-b border-[#22262D] flex items-center justify-between">
-        <div className="section-label flex items-center gap-2">
-          <Terminal size={12} />
-          <span>Scheduler Decision Log</span>
-        </div>
-        <span className="text-[10px] font-mono text-[#5C636D] tabular-nums">
+    <div className="h-full flex flex-col">
+      {/* Filter bar */}
+      <div className="px-3 py-1 border-b border-[#22262D] flex items-center gap-2">
+        <Terminal size={11} className="text-[#5C636D]" />
+        <span className="text-[10px] font-mono text-[#5C636D]">
           {decisions.length} entries
         </span>
+        <div className="w-px h-3 bg-[#22262D] mx-1" />
+        {(["all", "hits", "misses"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-2 py-0.5 text-[10px] font-mono rounded transition-colors ${
+              filter === f
+                ? f === "hits"
+                  ? "bg-[#5E8C6A]/20 text-[#5E8C6A]"
+                  : f === "misses"
+                  ? "bg-[#B8763E]/20 text-[#B8763E]"
+                  : "bg-[#D98E33]/20 text-[#D98E33]"
+                : "text-[#5C636D] hover:bg-[#181C22]"
+            }`}
+          >
+            {f === "all" ? "All" : f === "hits" ? `Hits (${hits})` : `Misses (${misses})`}
+          </button>
+        ))}
       </div>
 
       {/* Log content */}
@@ -50,23 +75,21 @@ export default function DecisionLog({
         className="flex-1 overflow-y-auto font-mono text-[11px] p-2 space-y-0.5"
       >
         {visibleDecisions.length === 0 ? (
-          <div className="text-[#5C636D] italic">
-            Awaiting scan data
-          </div>
+          <div className="text-[#5C636D] text-[11px] p-2">No matching entries</div>
         ) : (
           visibleDecisions.map((decision, idx) => (
             <div
               key={idx}
-              className={`flex items-start gap-2 ${
-                decision.actual_detection ? "text-[#5E8C6A]" : "text-[#9BA3AD]"
+              className={`flex items-start gap-2 py-0.5 px-1 rounded transition-colors hover:bg-[#181C22]/50 ${
+                decision.actual_detection ? "text-[#9BA3AD]" : "text-[#5C636D]"
               }`}
             >
               {/* Timestamp */}
-              <span className="text-[#5C636D] tabular-nums shrink-0">
+              <span className="text-[#3A3F46] tabular-nums shrink-0 w-10">
                 t={decision.time_step.toString().padStart(3, "0")}
               </span>
 
-              {/* Decision indicator */}
+              {/* Detection indicator */}
               <span
                 className={`shrink-0 ${
                   decision.actual_detection
@@ -79,24 +102,25 @@ export default function DecisionLog({
 
               {/* Band choice */}
               <span className="text-[#E8EAED]">
-                Band{" "}
-                <span className="text-[#D98E33] tabular-nums">
-                  {decision.band_chosen}
+                B<span className="text-[#D98E33] tabular-nums">{decision.band_chosen}</span>
+              </span>
+
+              {/* Confidence bar */}
+              <span className="text-[#5C636D] shrink-0 w-16">
+                c=
+                <span className="tabular-nums text-[#9BA3AD]">
+                  {(decision.confidence * 100).toFixed(0)}%
                 </span>
               </span>
 
-              {/* Confidence */}
-              <span className="text-[#5C636D]">
-                conf=
-                <span className="tabular-nums">
-                  {decision.confidence.toFixed(3)}
-                </span>
-              </span>
-
-              {/* Predicted reward */}
-              <span className="text-[#5C636D]">
-                rew=
-                <span className="tabular-nums">
+              {/* Reward */}
+              <span className="text-[#5C636D] shrink-0 w-16">
+                r=
+                <span
+                  className={`tabular-nums ${
+                    decision.predicted_reward > 0 ? "text-[#5E8C6A]" : "text-[#B8763E]"
+                  }`}
+                >
                   {decision.predicted_reward > 0 ? "+" : ""}
                   {decision.predicted_reward.toFixed(2)}
                 </span>
@@ -104,10 +128,10 @@ export default function DecisionLog({
 
               {/* Result */}
               <span
-                className={`shrink-0 ${
+                className={`shrink-0 text-[10px] px-1.5 py-0 rounded ${
                   decision.actual_detection
-                    ? "text-[#5E8C6A]"
-                    : "text-[#B8763E]"
+                    ? "bg-[#5E8C6A]/15 text-[#5E8C6A]"
+                    : "bg-[#B8763E]/10 text-[#B8763E]"
                 }`}
               >
                 {decision.actual_detection ? "HIT" : "MISS"}
