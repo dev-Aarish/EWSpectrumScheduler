@@ -24,6 +24,7 @@ interface ConfigData {
   config_id: string;
   n_pulses: number;
   n_emitters: number;
+  emitter_types: { label: string; count: number; color: string }[];
   n_bands: number;
   freq_range_mhz: number[];
   dwell_centres_mhz: number[];
@@ -190,6 +191,7 @@ export default function Dashboard() {
             configData.freq_range_mhz[0],
             configData.freq_range_mhz[1],
           ]}
+          emitterTypes={configData.emitter_types ?? []}
         />
 
         {/* Center panel */}

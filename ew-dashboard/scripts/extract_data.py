@@ -20,6 +20,68 @@ SCAN_DIR = Path("../scan")
 # Feature names
 FEATURE_NAMES = ["ToA", "Frequency", "PulseWidth", "AoA", "Amplitude"]
 
+EMITTER_TYPE_COLORS = {
+    "Fixed-Frequency": "bg-[#C4523B]",
+    "PRF Agile": "bg-[#D98E33]",
+    "Freq Hopping": "bg-[#5E8C6A]",
+    "Spatial Scan": "bg-[#B8763E]",
+    "Omni": "bg-[#6B7B8D]",
+}
+
+
+def extract_emitter_types(tx_group) -> list:
+    """Classify transmitters from H5 metadata/transmitters group."""
+    counts = {
+        "Fixed-Frequency": 0,
+        "PRF Agile": 0,
+        "Freq Hopping": 0,
+        "Spatial Scan": 0,
+        "Omni": 0,
+    }
+
+    for tx_key in tx_group.keys():
+        tx = tx_group[tx_key]
+
+        # Read freq_mode
+        freq_mode = ""
+        if "frequency_config" in tx:
+            fc = tx["frequency_config"]
+            freq_mode = fc.attrs.get("freq_mode", "")
+
+        # Read pri_mode
+        pri_mode = ""
+        if "pri_config" in tx:
+            pri = tx["pri_config"]
+            pri_mode = pri.attrs.get("pri_mode", "")
+
+        # Read scan_type
+        scan_type = ""
+        if "scan_config" in tx:
+            sc = tx["scan_config"]
+            scan_type = sc.attrs.get("scan_type", "")
+
+        # Classify
+        if freq_mode in ("FixedSingle", "FixedMultiSimultaneous"):
+            counts["Fixed-Frequency"] += 1
+
+        if pri_mode in ("Staggered", "SwitchDwell", "Jittered"):
+            counts["PRF Agile"] += 1
+
+        if freq_mode in ("RandomRange", "RandomFixed", "HoppingSawtooth"):
+            counts["Freq Hopping"] += 1
+
+        if scan_type == "Circular":
+            counts["Spatial Scan"] += 1
+        elif scan_type == "Omni":
+            counts["Omni"] += 1
+
+    return [
+        {"label": label, "count": count, "color": EMITTER_TYPE_COLORS[label]}
+        for label, count in counts.items()
+        if count > 0
+    ]
+
+
 def extract_config_data(h5_path: str) -> dict:
     """Extract data from a single H5 config file."""
     with h5py.File(h5_path, 'r') as f:
@@ -35,6 +97,7 @@ def extract_config_data(h5_path: str) -> dict:
         # Extract transmitter info
         tx_group = f['metadata/transmitters']
         n_emitters = len(tx_group.keys())
+        emitter_types = extract_emitter_types(tx_group)
         
         # Compute band activity (which bands have transmissions)
         # Frequency column (index 1) maps to band index
@@ -120,6 +183,7 @@ def extract_config_data(h5_path: str) -> dict:
             "config_id": Path(h5_path).stem,
             "n_pulses": len(data),
             "n_emitters": n_emitters,
+            "emitter_types": emitter_types,
             "n_bands": int(n_bands),
             "freq_range_mhz": [float(freq_range[0]), float(freq_range[1])],
             "dwell_centres_mhz": dwell_centres.tolist(),

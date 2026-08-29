@@ -18,6 +18,7 @@ interface SidebarProps {
   onBandSelect: (bandId: number | null) => void;
   nBands: number;
   freqRange: [number, number];
+  emitterTypes: { label: string; count: number; color: string }[];
 }
 
 export default function Sidebar({
@@ -26,6 +27,7 @@ export default function Sidebar({
   onBandSelect,
   nBands,
   freqRange,
+  emitterTypes,
 }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState({
     bands: true,
@@ -148,7 +150,7 @@ export default function Sidebar({
             <span className="section-label">Emitter Types</span>
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-[#5C636D] tabular-nums">
-                {new Set(bandStats.flatMap((b) => Array(b.n_emitters).fill(0))).size}
+                {emitterTypes.reduce((s, e) => s + e.count, 0)}
               </span>
               {expandedSections.emitters ? (
                 <ChevronDown size={12} className="text-[#5C636D]" />
@@ -161,12 +163,7 @@ export default function Sidebar({
           {expandedSections.emitters && (
             <div className="px-3 pb-2">
               <div className="text-[11px] font-mono text-[#9BA3AD] space-y-1">
-                {[
-                  { label: "Fixed-Freq", count: 12, color: "bg-[#C4523B]" },
-                  { label: "PRF Agile", count: 8, color: "bg-[#D98E33]" },
-                  { label: "Freq Hopping", count: 5, color: "bg-[#5E8C6A]" },
-                  { label: "Spatial Scan", count: 3, color: "bg-[#B8763E]" },
-                ].map((emitter) => (
+                {emitterTypes.map((emitter) => (
                   <div key={emitter.label} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-sm ${emitter.color}`} />
