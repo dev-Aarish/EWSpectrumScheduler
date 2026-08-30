@@ -30,30 +30,47 @@ export default function AmplitudeDistribution({
   selectedBand,
 }: AmplitudeDistributionProps) {
   // Create amplitude histogram data
-  const data = useMemo(() => {
+  const { data, binSize } = useMemo(() => {
     const amplitudes = bandStats
       .filter((b) => b.pulse_count > 0)
       .map((b) => Math.abs(b.mean_amplitude));
 
-    if (amplitudes.length === 0) return [];
+    if (amplitudes.length === 0) return { data: [], binSize: 5 };
 
-    const min = Math.floor(Math.min(...amplitudes) / 5) * 5;
-    const max = Math.ceil(Math.max(...amplitudes) / 5) * 5;
-    const binSize = 5;
-    const bins: { range: string; count: number; min: number }[] = [];
+    const dataMin = Math.min(...amplitudes);
+    const dataMax = Math.max(...amplitudes);
+    const range = dataMax - dataMin;
 
-    for (let i = min; i < max; i += binSize) {
+    // Adaptive bin count: target ~15 bins, min 5, max 25
+    const targetBins = Math.min(25, Math.max(5, Math.round(Math.sqrt(amplitudes.length))));
+    const computedBinSize = range > 0 ? range / targetBins : 5;
+
+    // Round bin size to a clean value (1, 2, 2.5, 5, 10, 20, etc.)
+    const magnitude = Math.pow(10, Math.floor(Math.log10(computedBinSize)));
+    const normalized = computedBinSize / magnitude;
+    let cleanBinSize: number;
+    if (normalized <= 1.5) cleanBinSize = 1 * magnitude;
+    else if (normalized <= 3.5) cleanBinSize = 2 * magnitude;
+    else if (normalized <= 7.5) cleanBinSize = 5 * magnitude;
+    else cleanBinSize = 10 * magnitude;
+
+    const min = Math.floor(dataMin / cleanBinSize) * cleanBinSize;
+    const max = Math.ceil(dataMax / cleanBinSize) * cleanBinSize;
+    const bins: { range: string; count: number; min: number; binSize: number }[] = [];
+
+    for (let i = min; i < max; i += cleanBinSize) {
       const count = amplitudes.filter(
-        (a) => a >= i && a < i + binSize
+        (a) => a >= i && a < i + cleanBinSize
       ).length;
       bins.push({
-        range: `${i}`,
+        range: `${i.toFixed(cleanBinSize < 1 ? 1 : 0)}`,
         count,
         min: i,
+        binSize: cleanBinSize,
       });
     }
 
-    return bins;
+    return { data: bins, binSize: cleanBinSize };
   }, [bandStats]);
 
   const selectedAmplitude = selectedBand !== null
@@ -63,10 +80,11 @@ export default function AmplitudeDistribution({
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload;
+      const rangeEnd = d.min + d.binSize;
       return (
         <div className="bg-[#181C22] border border-[#343A42] px-3 py-2 text-[11px] font-mono">
           <div className="text-[#E8EAED]">
-            {d.min}-{d.min + 5} dB
+            {d.min.toFixed(1)}-{rangeEnd.toFixed(1)} dB
           </div>
           <div className="text-[#D98E33] tabular-nums">
             {d.count} band{d.count !== 1 ? "s" : ""}
