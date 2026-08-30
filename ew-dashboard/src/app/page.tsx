@@ -193,21 +193,26 @@ export default function Dashboard() {
 
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar — collapsible with transition */}
+        {/* Left sidebar — collapsible with GPU-accelerated slide transition */}
         <div
           style={{
             width: sidebarCollapsed ? 40 : 224,
-            transition: "width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
+            minWidth: sidebarCollapsed ? 40 : 224,
+            maxWidth: sidebarCollapsed ? 40 : 224,
+            transition: "width 200ms cubic-bezier(0.4, 0, 0.2, 1), min-width 200ms cubic-bezier(0.4, 0, 0.2, 1), max-width 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+            willChange: "width",
           }}
           className="bg-[#12151A] border-r border-[#22262D] flex-shrink-0 overflow-hidden relative"
         >
-          {/* Expanded content */}
+          {/* Expanded content — slides out and fades when collapsing */}
           <div
-            className="h-full flex flex-col"
+            className="absolute inset-y-0 right-0 flex flex-col w-[224px]"
             style={{
               opacity: sidebarCollapsed ? 0 : 1,
-              transition: "opacity 0.35s ease-in-out",
+              transform: sidebarCollapsed ? "translateX(8px)" : "translateX(0)",
+              transition: "opacity 150ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
               pointerEvents: sidebarCollapsed ? "none" : "auto",
+              willChange: "opacity, transform",
             }}
           >
             <Sidebar
@@ -231,12 +236,12 @@ export default function Dashboard() {
               }
             />
           </div>
-          {/* Collapsed content */}
+          {/* Collapsed content — fades in when collapsed */}
           <div
             className="absolute inset-0 flex flex-col items-center py-2"
             style={{
               opacity: sidebarCollapsed ? 1 : 0,
-              transition: "opacity 0.35s ease-in-out",
+              transition: "opacity 200ms cubic-bezier(0.4, 0, 0.2, 1) 80ms",
               pointerEvents: sidebarCollapsed ? "auto" : "none",
             }}
           >
@@ -430,21 +435,26 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Right panel — collapsible with transition */}
+        {/* Right panel — collapsible with GPU-accelerated slide transition */}
         <div
           style={{
             width: inspectorCollapsed ? 40 : 288,
-            transition: "width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
+            minWidth: inspectorCollapsed ? 40 : 288,
+            maxWidth: inspectorCollapsed ? 40 : 288,
+            transition: "width 200ms cubic-bezier(0.4, 0, 0.2, 1), min-width 200ms cubic-bezier(0.4, 0, 0.2, 1), max-width 200ms cubic-bezier(0.4, 0, 0.2, 1)",
+            willChange: "width",
           }}
           className="bg-[#12151A] border-l border-[#22262D] flex-shrink-0 overflow-hidden relative"
         >
-          {/* Expanded content */}
+          {/* Expanded content — slides out and fades when collapsing */}
           <div
-            className="h-full flex flex-col"
+            className="absolute inset-y-0 left-0 flex flex-col w-[288px]"
             style={{
               opacity: inspectorCollapsed ? 0 : 1,
-              transition: "opacity 0.35s ease-in-out",
+              transform: inspectorCollapsed ? "translateX(-8px)" : "translateX(0)",
+              transition: "opacity 150ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1)",
               pointerEvents: inspectorCollapsed ? "none" : "auto",
+              willChange: "opacity, transform",
             }}
           >
             <EmitterDetailPanel
@@ -465,12 +475,12 @@ export default function Dashboard() {
               }
             />
           </div>
-          {/* Collapsed content */}
+          {/* Collapsed content — fades in when collapsed */}
           <div
             className="absolute inset-0 flex flex-col items-center py-2"
             style={{
               opacity: inspectorCollapsed ? 1 : 0,
-              transition: "opacity 0.35s ease-in-out",
+              transition: "opacity 200ms cubic-bezier(0.4, 0, 0.2, 1) 80ms",
               pointerEvents: inspectorCollapsed ? "auto" : "none",
             }}
           >
