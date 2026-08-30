@@ -23,6 +23,7 @@ import DatasetExplorer from "@/components/DatasetExplorer";
 import ScanTimeline from "@/components/ScanTimeline";
 import ScatterPlot from "@/components/ScatterPlot";
 import PRFHistogram from "@/components/PRFHistogram";
+import AoAPolarPlot from "@/components/AoAPolarPlot";
 
 interface ConfigData {
   config_id: string;
@@ -271,32 +272,6 @@ export default function Dashboard() {
         {/* Center panel — scrollable */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <div className="flex-1 overflow-y-auto">
-            {/* Waterfall + Timeline (fixed height section) */}
-            <div className="flex-shrink-0">
-              <div className="h-[420px] flex flex-col">
-                <SpectrumWaterfall
-                  waterfall={configData.waterfall}
-                  waterfallLabels={configData.waterfall_labels}
-                  nBands={configData.n_bands}
-                  nTimeBins={configData.n_time_bins}
-                  selectedBand={selectedBand}
-                  scanHistory={configData.scan_history}
-                  dwellCentres={configData.dwell_centres_mhz}
-                  currentScanStep={scanStep}
-                  bandStats={configData.band_stats}
-                  onBandClick={setSelectedBand}
-                />
-              </div>
-              <ScanTimeline
-                scanHistory={configData.scan_history}
-                waterfall={configData.waterfall}
-                dwellCentres={configData.dwell_centres_mhz}
-                currentStep={scanStep}
-                onStepClick={setScanStep}
-                nBands={configData.n_bands}
-              />
-            </div>
-
             {/* Controls bar */}
             <div className="px-3 py-2 bg-[#12151A] border-y border-[#22262D] flex items-center gap-3 flex-shrink-0">
               <span className="section-label shrink-0">Controls</span>
@@ -380,6 +355,32 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Waterfall + Timeline (fixed height section) */}
+            <div className="flex-shrink-0">
+              <div className="h-[420px] flex flex-col">
+                <SpectrumWaterfall
+                  waterfall={configData.waterfall}
+                  waterfallLabels={configData.waterfall_labels}
+                  nBands={configData.n_bands}
+                  nTimeBins={configData.n_time_bins}
+                  selectedBand={selectedBand}
+                  scanHistory={configData.scan_history}
+                  dwellCentres={configData.dwell_centres_mhz}
+                  currentScanStep={scanStep}
+                  bandStats={configData.band_stats}
+                  onBandClick={setSelectedBand}
+                />
+              </div>
+              <ScanTimeline
+                scanHistory={configData.scan_history}
+                waterfall={configData.waterfall}
+                dwellCentres={configData.dwell_centres_mhz}
+                currentStep={scanStep}
+                onStepClick={setScanStep}
+                nBands={configData.n_bands}
+              />
+            </div>
+
             {/* Tab bar */}
             <div className="flex border-b border-[#22262D] bg-[#12151A] flex-shrink-0">
               {[
@@ -439,7 +440,13 @@ export default function Dashboard() {
                       emitterLabels={[...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)}
                     />
                   </div>
-                  <div />
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
+                    <AoAPolarPlot
+                      pulseData={configData.pulse_data}
+                      emitterTypes={configData.emitter_types ?? []}
+                      emitterLabels={[...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)}
+                    />
+                  </div>
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
                     <PRFHistogram
                       prfData={configData.prf_data}
