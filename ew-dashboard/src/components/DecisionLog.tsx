@@ -14,32 +14,37 @@ interface Decision {
 
 interface DecisionLogProps {
   decisions: Decision[];
+  currentStep?: number;
   maxVisible?: number;
 }
 
 export default function DecisionLog({
   decisions,
+  currentStep,
   maxVisible,
 }: DecisionLogProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<"all" | "hits" | "misses">("all");
+  const prevCountRef = useRef(0);
 
-  const filteredDecisions = decisions.filter((d) => {
+  const visibleDecisions = decisions.filter((d) => {
+    if (currentStep !== undefined && d.time_step > currentStep) return false;
     if (filter === "hits") return d.actual_detection;
     if (filter === "misses") return !d.actual_detection;
     return true;
   });
 
-  const visibleDecisions = maxVisible ? filteredDecisions.slice(-maxVisible) : filteredDecisions;
+  const slicedDecisions = maxVisible ? visibleDecisions.slice(-maxVisible) : visibleDecisions;
 
-  const hits = decisions.filter((d) => d.actual_detection).length;
-  const misses = decisions.filter((d) => !d.actual_detection).length;
+  const hits = visibleDecisions.filter((d) => d.actual_detection).length;
+  const misses = visibleDecisions.filter((d) => !d.actual_detection).length;
 
   useEffect(() => {
-    if (scrollRef.current) {
+    if (scrollRef.current && slicedDecisions.length > prevCountRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [filteredDecisions]);
+    prevCountRef.current = slicedDecisions.length;
+  }, [slicedDecisions.length]);
 
   return (
     <div className="h-full flex flex-col">
@@ -74,10 +79,10 @@ export default function DecisionLog({
         ref={scrollRef}
         className="flex-1 overflow-y-auto font-mono text-[11px] p-2 space-y-0.5"
       >
-        {visibleDecisions.length === 0 ? (
+        {slicedDecisions.length === 0 ? (
           <div className="text-[#5C636D] text-[11px] p-2">No matching entries</div>
         ) : (
-          visibleDecisions.map((decision, idx) => (
+          slicedDecisions.map((decision, idx) => (
             <div
               key={idx}
               className={`flex items-start gap-2 py-0.5 px-1 rounded transition-colors hover:bg-[#181C22]/50 ${

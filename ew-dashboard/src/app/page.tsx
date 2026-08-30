@@ -353,7 +353,7 @@ export default function Dashboard() {
             {/* Tab content */}
             <div className="flex-1 overflow-hidden flex flex-col">
               {bottomTab === "log" && (
-                <DecisionLog decisions={configData.scheduler_decisions} />
+                <DecisionLog decisions={configData.scheduler_decisions} currentStep={scanStep} />
               )}
               {bottomTab === "explorer" && (
                 <DatasetExplorer
