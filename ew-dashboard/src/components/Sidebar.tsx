@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, Filter, Layers } from "lucide-react";
 
 interface BandStats {
@@ -34,6 +34,21 @@ export default function Sidebar({
     emitters: true,
     filters: false,
   });
+  const [minPulses, setMinPulses] = useState<string>("0");
+  const [freqMin, setFreqMin] = useState<string>(String(freqRange[0]));
+  const [freqMax, setFreqMax] = useState<string>(String(freqRange[1]));
+
+  // Reset filters when freqRange changes (new config loaded)
+  useEffect(() => {
+    setFreqMin(String(freqRange[0]));
+    setFreqMax(String(freqRange[1]));
+    setMinPulses("0");
+  }, [freqRange[0], freqRange[1]]);
+
+  // Parse filter values (empty string defaults to appropriate bound)
+  const parsedMinPulses = minPulses === "" ? 0 : Number(minPulses);
+  const parsedFreqMin = freqMin === "" ? freqRange[0] : Number(freqMin);
+  const parsedFreqMax = freqMax === "" ? freqRange[1] : Number(freqMax);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({
@@ -42,11 +57,22 @@ export default function Sidebar({
     }));
   };
 
-  // Sort bands by pulse count for the list
+  // Sort and filter bands by pulse count for the list
   const sortedBands = [...bandStats].sort(
     (a, b) => b.pulse_count - a.pulse_count
   );
-  const activeBands = sortedBands.filter((b) => b.pulse_count > 0);
+  const activeBands = sortedBands.filter(
+    (b) =>
+      b.pulse_count > 0 &&
+      b.pulse_count >= parsedMinPulses &&
+      b.dwell_centre_mhz >= parsedFreqMin &&
+      b.dwell_centre_mhz <= parsedFreqMax
+  );
+
+  // Select all text on focus for number inputs
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.select();
+  };
 
   return (
     <aside className="w-56 bg-[#12151A] border-r border-[#22262D] flex flex-col overflow-hidden">
@@ -201,7 +227,10 @@ export default function Sidebar({
                 </label>
                 <input
                   type="number"
-                  defaultValue={0}
+                  min={0}
+                  value={minPulses}
+                  onFocus={handleFocus}
+                  onChange={(e) => setMinPulses(e.target.value)}
                   className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
                 />
               </div>
@@ -212,16 +241,37 @@ export default function Sidebar({
                 <div className="flex flex-col gap-1">
                   <input
                     type="number"
-                    defaultValue={freqRange[0]}
+                    min={freqRange[0]}
+                    max={freqRange[1]}
+                    value={freqMin}
+                    onFocus={handleFocus}
+                    onChange={(e) => setFreqMin(e.target.value)}
                     className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
                   />
                   <input
                     type="number"
-                    defaultValue={freqRange[1]}
+                    min={freqRange[0]}
+                    max={freqRange[1]}
+                    value={freqMax}
+                    onFocus={handleFocus}
+                    onChange={(e) => setFreqMax(e.target.value)}
                     className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
                   />
                 </div>
               </div>
+              {/* Reset filters button */}
+              {(parsedMinPulses > 0 || parsedFreqMin !== freqRange[0] || parsedFreqMax !== freqRange[1]) && (
+                <button
+                  onClick={() => {
+                    setMinPulses("0");
+                    setFreqMin(String(freqRange[0]));
+                    setFreqMax(String(freqRange[1]));
+                  }}
+                  className="w-full text-[10px] text-[#D98E33] hover:text-[#D98E33]/80 transition-colors py-1"
+                >
+                  Reset Filters
+                </button>
+              )}
             </div>
           )}
         </div>
