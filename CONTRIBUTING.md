@@ -75,7 +75,7 @@ python3 scripts/extract_data.py
 ```
 
 Outputs to `public/data/`:
-- `config_0.json` ... `config_101.json` — per-config data with waterfall, band stats, decisions
+- `config_0.json` ... `config_249.json` — per-config data with waterfall, band stats, decisions
 - `config_list.json` — array of config IDs `["config_0", "config_1", ...]`
 - `stats.json` — aggregate stats
 
@@ -241,7 +241,6 @@ ew-dashboard/
 │       ├── ScanTimeline.tsx      # Clickable scan history bar chart
 │       ├── DecisionLog.tsx       # Terminal-style scheduler log
 │       └── DatasetExplorer.tsx   # Sortable config table
-├── scripts/                     # Python extraction scripts
 └── package.json
 ```
 
