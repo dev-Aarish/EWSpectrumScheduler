@@ -24,6 +24,7 @@ import ScanTimeline from "@/components/ScanTimeline";
 import ScatterPlot from "@/components/ScatterPlot";
 import PRFHistogram from "@/components/PRFHistogram";
 import AoAPolarPlot from "@/components/AoAPolarPlot";
+import CumulativeDetectionCurve from "@/components/CumulativeDetectionCurve";
 
 interface ConfigData {
   config_id: string;
@@ -469,6 +470,17 @@ export default function Dashboard() {
                     <PRFHistogram
                       prfData={configData.prf_data}
                       selectedBand={selectedBand}
+                    />
+                  </div>
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
+                    <CumulativeDetectionCurve
+                      waterfall={configData.waterfall}
+                      schedulerDecisions={configData.scheduler_decisions}
+                      bandStats={configData.band_stats}
+                      scanHistory={configData.scan_history}
+                      nBands={configData.n_bands}
+                      nTimeBins={configData.n_time_bins}
+                      scanStep={scanStep}
                     />
                   </div>
                 </div>
