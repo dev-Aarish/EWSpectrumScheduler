@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import StatusBar from "@/components/StatusBar";
 import Sidebar from "@/components/Sidebar";
-import SpectrumWaterfall from "@/components/SpectrumWaterfall";
+import SpectrumWaterfall, { type WaterfallViewMode } from "@/components/SpectrumWaterfall";
 import FrequencySpectrum from "@/components/FrequencySpectrum";
 import AmplitudeDistribution from "@/components/AmplitudeDistribution";
 import EmitterDetailPanel from "@/components/EmitterDetailPanel";
@@ -37,6 +37,8 @@ interface ConfigData {
   feature_names: string[];
   waterfall: number[][];
   waterfall_labels: number[][];
+  waterfall_amplitude: number[][];
+  amplitude_range: [number, number];
   band_stats: {
     band_id: number;
     dwell_centre_mhz: number;
@@ -112,6 +114,7 @@ export default function Dashboard() {
   const [bottomTab, setBottomTab] = useState<"log" | "explorer" | "charts">("charts");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const [waterfallViewMode, setWaterfallViewMode] = useState<WaterfallViewMode>("binary");
 
   // Load config list
   useEffect(() => {
@@ -380,6 +383,8 @@ export default function Dashboard() {
                 <SpectrumWaterfall
                   waterfall={configData.waterfall}
                   waterfallLabels={configData.waterfall_labels}
+                  waterfallAmplitude={configData.waterfall_amplitude}
+                  amplitudeRange={configData.amplitude_range}
                   nBands={configData.n_bands}
                   nTimeBins={configData.n_time_bins}
                   selectedBand={selectedBand}
@@ -388,6 +393,8 @@ export default function Dashboard() {
                   currentScanStep={scanStep}
                   bandStats={configData.band_stats}
                   onBandClick={setSelectedBand}
+                  viewMode={waterfallViewMode}
+                  onViewModeChange={setWaterfallViewMode}
                 />
               </div>
               <ScanTimeline

@@ -11,9 +11,13 @@ interface BandStat {
   frequency_range: number[];
 }
 
+export type WaterfallViewMode = "binary" | "amplitude";
+
 interface SpectrumWaterfallProps {
   waterfall: number[][];
   waterfallLabels: number[][];
+  waterfallAmplitude?: number[][];
+  amplitudeRange?: [number, number];
   nBands: number;
   nTimeBins: number;
   selectedBand: number | null;
@@ -22,13 +26,52 @@ interface SpectrumWaterfallProps {
   currentScanStep: number;
   bandStats?: BandStat[];
   onBandClick?: (band: number) => void;
+  viewMode?: WaterfallViewMode;
+  onViewModeChange?: (mode: WaterfallViewMode) => void;
 }
 
 const PADDING = { top: 8, right: 12, bottom: 24, left: 64 };
+const COLORBAR_WIDTH = 16;
+const COLORBAR_GAP = 8;
+
+/** Viridis-inspired colormap: 0 → dark purple, 0.5 → teal/green, 1 → bright yellow */
+function amplitudeToColor(value: number, min: number, max: number): string {
+  if (max <= min) return "rgb(68, 1, 84)";
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+
+  // 5-stop gradient: purple → blue → teal → green → yellow
+  const stops = [
+    [68, 1, 84],     // #440154  deep purple
+    [59, 82, 139],   // #3B528B  blue
+    [33, 145, 140],  // #21918C  teal
+    [94, 201, 98],   // #5EC962  green
+    [253, 231, 37],  // #FDE725  yellow
+  ];
+  const seg = t * (stops.length - 1);
+  const i = Math.min(Math.floor(seg), stops.length - 2);
+  const f = seg - i;
+  const r = Math.round(stops[i][0] + (stops[i + 1][0] - stops[i][0]) * f);
+  const g = Math.round(stops[i][1] + (stops[i + 1][1] - stops[i][1]) * f);
+  const b = Math.round(stops[i][2] + (stops[i + 1][2] - stops[i][2]) * f);
+  return `rgb(${r},${g},${b})`;
+}
+
+/** Pre-render the colormap as a vertical gradient strip for the colorbar */
+function colormapGradientCSS(): string {
+  const stops: string[] = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20;
+    const c = amplitudeToColor(t, 0, 1);
+    stops.push(`${c} ${(t * 100).toFixed(1)}%`);
+  }
+  return `linear-gradient(to bottom, ${stops.join(", ")})`;
+}
 
 export default function SpectrumWaterfall({
   waterfall,
   waterfallLabels,
+  waterfallAmplitude,
+  amplitudeRange,
   nBands,
   nTimeBins,
   selectedBand,
@@ -37,6 +80,8 @@ export default function SpectrumWaterfall({
   currentScanStep,
   bandStats,
   onBandClick,
+  viewMode = "binary",
+  onViewModeChange,
 }: SpectrumWaterfallProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,8 +141,8 @@ export default function SpectrumWaterfall({
     const cellWidth = plotWidth / nTimeBins;
     const cellHeight = plotHeight / nBands;
 
-    // Check if we can reuse the cached offscreen heatmap
-    const cacheKey = `${waterfall.length}-${nBands}-${nTimeBins}-${selectedBand}-${JSON.stringify(scanHistory.slice(0, 5))}`;
+      // Check if we can reuse the cached offscreen heatmap
+    const cacheKey = `${waterfall.length}-${nBands}-${nTimeBins}-${selectedBand}-${JSON.stringify(scanHistory.slice(0, 5))}-${viewMode}-${amplitudeRange?.[0]}-${amplitudeRange?.[1]}`;
     if (offscreenCanvasRef.current && heatmapCacheKeyRef.current === cacheKey) {
       // Fast GPU-accelerated blit from offscreen canvas
       ctx.save();
@@ -149,6 +194,9 @@ export default function SpectrumWaterfall({
 
       // Precompute transmission RGB once
       const tR = 0xC4, tG = 0x52, tB = 0x3B;
+      const isAmplitude = viewMode === "amplitude" && waterfallAmplitude && amplitudeRange;
+      const ampMin = amplitudeRange?.[0] ?? 0;
+      const ampMax = amplitudeRange?.[1] ?? 1;
 
       // Draw heatmap cells
       for (let band = 0; band < nBands; band++) {
@@ -159,7 +207,10 @@ export default function SpectrumWaterfall({
           const isTransmission = waterfall[band][t] === 1;
           const isScanned = scanLookup.has(t * nBands + band);
 
-          if (isTransmission) {
+          if (isAmplitude && isTransmission) {
+            const amp = waterfallAmplitude![band][t];
+            offCtx.fillStyle = amplitudeToColor(amp, ampMin, ampMax);
+          } else if (isTransmission) {
             const label = waterfallLabels[band]?.[t] || 0;
             const intensity = Math.min(1, label / 20);
             offCtx.fillStyle = `rgba(${tR}, ${tG}, ${tB}, ${0.5 + intensity * 0.5})`;
@@ -174,6 +225,55 @@ export default function SpectrumWaterfall({
             offCtx.fillRect(x, y, cellWidth + 0.5, cellHeight + 0.5);
           }
         }
+      }
+
+      // Colorbar (amplitude mode only)
+      if (isAmplitude) {
+        const cbX = PADDING.left + plotWidth + COLORBAR_GAP;
+        const cbHeight = plotHeight;
+        const cbY = PADDING.top;
+
+        // Gradient strip
+        const grad = offCtx.createLinearGradient(0, cbY, 0, cbY + cbHeight);
+        for (let i = 0; i <= 10; i++) {
+          const t = i / 10;
+          grad.addColorStop(t, amplitudeToColor(ampMin + t * (ampMax - ampMin), ampMin, ampMax));
+        }
+        offCtx.fillStyle = grad;
+        offCtx.fillRect(cbX, cbY, COLORBAR_WIDTH, cbHeight);
+        offCtx.strokeStyle = "#2A2E35";
+        offCtx.lineWidth = 0.5;
+        offCtx.strokeRect(cbX, cbY, COLORBAR_WIDTH, cbHeight);
+
+        // Tick labels
+        offCtx.fillStyle = "#5C636D";
+        offCtx.font = "8px 'IBM Plex Mono', monospace";
+        offCtx.textAlign = "left";
+        offCtx.textBaseline = "middle";
+        const nTicks = 5;
+        for (let i = 0; i <= nTicks; i++) {
+          const t = i / nTicks;
+          const val = ampMin + t * (ampMax - ampMin);
+          const y = cbY + (1 - t) * cbHeight;
+          offCtx.fillText(`${val.toFixed(0)}`, cbX + COLORBAR_WIDTH + 3, y);
+          // Small tick mark
+          offCtx.beginPath();
+          offCtx.moveTo(cbX + COLORBAR_WIDTH, y);
+          offCtx.lineTo(cbX + COLORBAR_WIDTH + 2, y);
+          offCtx.strokeStyle = "#5C636D";
+          offCtx.lineWidth = 0.5;
+          offCtx.stroke();
+        }
+
+        // dB label
+        offCtx.save();
+        offCtx.translate(cbX + COLORBAR_WIDTH + 22, cbY + cbHeight / 2);
+        offCtx.rotate(-Math.PI / 2);
+        offCtx.fillStyle = "#3A3F46";
+        offCtx.font = "8px 'IBM Plex Mono', monospace";
+        offCtx.textAlign = "center";
+        offCtx.fillText("dB", 0, 0);
+        offCtx.restore();
       }
 
       // Selected band highlight
@@ -278,6 +378,8 @@ export default function SpectrumWaterfall({
   }, [
     waterfall,
     waterfallLabels,
+    waterfallAmplitude,
+    amplitudeRange,
     nBands,
     nTimeBins,
     selectedBand,
@@ -285,6 +387,7 @@ export default function SpectrumWaterfall({
     dwellCentres,
     currentScanStep,
     dimensions,
+    viewMode,
   ]);
 
   const handleMouseMove = useCallback(
@@ -330,6 +433,32 @@ export default function SpectrumWaterfall({
         onClick={handleClick}
       />
 
+      {/* View mode toggle */}
+      {onViewModeChange && (
+        <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1 bg-[#181C22]/90 border border-[#2A2E35] rounded px-1.5 py-0.5">
+          <button
+            onClick={() => onViewModeChange("binary")}
+            className={`text-[9px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+              viewMode === "binary"
+                ? "bg-[#D98E33]/20 text-[#D98E33]"
+                : "text-[#5C636D] hover:text-[#9BA3AD]"
+            }`}
+          >
+            Binary
+          </button>
+          <button
+            onClick={() => onViewModeChange("amplitude")}
+            className={`text-[9px] font-mono px-1.5 py-0.5 rounded transition-colors ${
+              viewMode === "amplitude"
+                ? "bg-[#D98E33]/20 text-[#D98E33]"
+                : "text-[#5C636D] hover:text-[#9BA3AD]"
+            }`}
+          >
+            Amplitude
+          </button>
+        </div>
+      )}
+
       {/* Floating tooltip */}
       {hoveredCell && (() => {
         const band = hoveredCell.band;
@@ -338,16 +467,41 @@ export default function SpectrumWaterfall({
         const pulseCount = bandWaterfall.filter((v) => v === 1).length;
         const isActive = bandWaterfall.includes(1);
         const freqRange = stats?.frequency_range;
-        const sparkData = bandWaterfall.slice(0, 80);
+        const isAmpMode = viewMode === "amplitude" && waterfallAmplitude && amplitudeRange;
+
+        // Sparkline: in amplitude mode show amplitude values, otherwise binary
+        const sparkData = isAmpMode
+          ? (waterfallAmplitude![band] || []).slice(0, 80)
+          : bandWaterfall.slice(0, 80);
         const sparkWidth = 120;
         const sparkHeight = 16;
         const sparkPoints = sparkData.length > 1
-          ? sparkData.map((v, i) => {
-              const x = (i / (sparkData.length - 1)) * sparkWidth;
-              const y = v === 1 ? 2 : sparkHeight - 2;
-              return `${x},${y}`;
-            }).join(" ")
+          ? (() => {
+              if (isAmpMode) {
+                const ampMin = amplitudeRange![0];
+                const ampMax = amplitudeRange![1];
+                const range = ampMax - ampMin || 1;
+                return sparkData.map((v, i) => {
+                  const x = (i / (sparkData.length - 1)) * sparkWidth;
+                  const y = sparkHeight - 2 - ((v - ampMin) / range) * (sparkHeight - 4);
+                  return `${x},${y}`;
+                }).join(" ");
+              }
+              return sparkData.map((v, i) => {
+                const x = (i / (sparkData.length - 1)) * sparkWidth;
+                const y = v === 1 ? 2 : sparkHeight - 2;
+                return `${x},${y}`;
+              }).join(" ");
+            })()
           : "";
+
+        // Compute mean amplitude for this band in amplitude mode
+        const bandAmp = isAmpMode
+          ? (waterfallAmplitude![band] || []).filter((v) => v > 0)
+          : [];
+        const meanAmp = bandAmp.length > 0
+          ? bandAmp.reduce((s, v) => s + v, 0) / bandAmp.length
+          : null;
 
         return (
           <div
@@ -383,6 +537,14 @@ export default function SpectrumWaterfall({
                       {stats.mean_amplitude.toFixed(1)} dB
                     </span>
                   </div>
+                  {isAmpMode && meanAmp !== null && (
+                    <div className="flex justify-between">
+                      <span>Cell Amp</span>
+                      <span className="text-[#E8EAED] tabular-nums">
+                        {meanAmp.toFixed(1)} dB
+                      </span>
+                    </div>
+                  )}
                   {freqRange && freqRange.length === 2 && (
                     <div className="flex justify-between">
                       <span>Freq Range</span>
@@ -400,7 +562,7 @@ export default function SpectrumWaterfall({
                   <polyline
                     points={sparkPoints}
                     fill="none"
-                    stroke={isActive ? "#C4523B" : "#3A3F46"}
+                    stroke={isAmpMode ? "#5EC962" : isActive ? "#C4523B" : "#3A3F46"}
                     strokeWidth="1.5"
                     strokeLinejoin="round"
                   />

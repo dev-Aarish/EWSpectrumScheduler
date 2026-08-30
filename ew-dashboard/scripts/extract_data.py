@@ -224,6 +224,11 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
         # Build waterfall grid: rows = bands, cols = time bins
         waterfall = np.zeros((n_bands, n_time_bins), dtype=int)
         waterfall_labels = np.zeros((n_bands, n_time_bins), dtype=int)
+        waterfall_amplitude = np.zeros((n_bands, n_time_bins), dtype=float)
+        
+        # Accumulate amplitudes per cell for mean computation
+        amplitude_sums = np.zeros((n_bands, n_time_bins), dtype=float)
+        amplitude_counts = np.zeros((n_bands, n_time_bins), dtype=int)
         
         for i in range(len(bands_sorted)):
             t_idx = np.searchsorted(time_bins[1:], toa_sorted[i])
@@ -231,6 +236,19 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
             b_idx = int(bands_sorted[i])
             waterfall[b_idx, t_idx] = 1  # Transmission detected
             waterfall_labels[b_idx, t_idx] = int(labels_sorted[i])
+            amplitude_sums[b_idx, t_idx] += amplitude_sorted[i]
+            amplitude_counts[b_idx, t_idx] += 1
+        
+        # Compute mean amplitude per cell (cells with no pulses stay 0)
+        has_pulses = amplitude_counts > 0
+        waterfall_amplitude[has_pulses] = amplitude_sums[has_pulses] / amplitude_counts[has_pulses]
+        
+        # Compute global amplitude range for colorbar scaling
+        if has_pulses.any():
+            amp_min = float(waterfall_amplitude[has_pulses].min())
+            amp_max = float(waterfall_amplitude[has_pulses].max())
+        else:
+            amp_min, amp_max = 0.0, 0.0
         
         # Compute per-band statistics
         band_stats = []
@@ -332,6 +350,8 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
             "feature_names": FEATURE_NAMES,
             "waterfall": waterfall.tolist(),
             "waterfall_labels": waterfall_labels.tolist(),
+            "waterfall_amplitude": waterfall_amplitude.tolist(),
+            "amplitude_range": [amp_min, amp_max],
             "band_stats": band_stats,
             "pulse_data": pulse_data,
             "prf_data": prf_data,
