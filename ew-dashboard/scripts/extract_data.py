@@ -8,6 +8,7 @@ import h5py
 import numpy as np
 import json
 import os
+import argparse
 from pathlib import Path
 
 # Output directory
@@ -82,7 +83,7 @@ def extract_emitter_types(tx_group) -> list:
     ]
 
 
-def extract_config_data(h5_path: str) -> dict:
+def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
     """Extract data from a single H5 config file."""
     with h5py.File(h5_path, 'r') as f:
         data = f['data'][:]
@@ -121,7 +122,7 @@ def extract_config_data(h5_path: str) -> dict:
         amplitude_sorted = data[:, 4][sorted_indices]
         
         # Compute time bins for waterfall visualization
-        n_time_bins = min(200, len(toa_sorted))
+        n_time_bins = min(max_time_bins, len(toa_sorted))
         time_bins = np.linspace(toa_sorted.min(), toa_sorted.max(), n_time_bins + 1)
         
         # Build waterfall grid: rows = bands, cols = time bins
@@ -218,7 +219,7 @@ def extract_config_data(h5_path: str) -> dict:
         }
 
 
-def extract_all_configs(split: str = "val_scan", max_configs: int = 0) -> list:
+def extract_all_configs(split: str = "val_scan", max_configs: int = 0, max_time_bins: int = 200) -> list:
     """Extract data from multiple config files. max_configs=0 means all."""
     scan_dir = SCAN_DIR / split
     h5_files = sorted([f for f in scan_dir.glob("config_*.h5")])
@@ -229,7 +230,7 @@ def extract_all_configs(split: str = "val_scan", max_configs: int = 0) -> list:
     for h5_file in h5_files:
         print(f"Extracting {h5_file.name}...")
         try:
-            config_data = extract_config_data(str(h5_file))
+            config_data = extract_config_data(str(h5_file), max_time_bins)
             configs.append(config_data)
         except Exception as e:
             print(f"  Error: {e}")
@@ -254,10 +255,19 @@ def generate_dataset_stats(configs: list) -> dict:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Extract EW scan data to JSON for dashboard")
+    parser.add_argument("--split", default="val_scan", help="Dataset split to extract (default: val_scan)")
+    parser.add_argument("--max-configs", type=int, default=0, help="Max configs to extract, 0=all (default: 0)")
+    parser.add_argument("--time-bins", type=int, default=200, help="Max time bins for waterfall (default: 200)")
+    args = parser.parse_args()
+
     print("=== Extracting EW Scan Data ===")
+    print(f"  Split: {args.split}")
+    print(f"  Max configs: {args.max_configs or 'all'}")
+    print(f"  Max time bins: {args.time_bins}")
     
-    # Extract validation configs
-    configs = extract_all_configs("val_scan")
+    # Extract configs
+    configs = extract_all_configs(args.split, args.max_configs, args.time_bins)
     
     # Save individual configs
     for config in configs:
