@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { useState } from "react";
+import { useState, useMemo, memo } from "react";
 
 interface BandStats {
   band_id: number;
@@ -27,23 +27,27 @@ interface FrequencySpectrumProps {
   onBandSelect: (bandId: number | null) => void;
 }
 
-export default function FrequencySpectrum({
+function FrequencySpectrum({
   bandStats,
   selectedBand,
   onBandSelect,
 }: FrequencySpectrumProps) {
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
-  const data = bandStats.map((b) => ({
-    band: b.band_id,
-    freq: b.dwell_centre_mhz,
-    pulses: b.pulse_count,
-    emitters: b.n_emitters,
-    amplitude: Math.abs(b.mean_amplitude),
-  }));
+  const data = useMemo(
+    () =>
+      bandStats.map((b) => ({
+        band: b.band_id,
+        freq: b.dwell_centre_mhz,
+        pulses: b.pulse_count,
+        emitters: b.n_emitters,
+        amplitude: Math.abs(b.mean_amplitude),
+      })),
+    [bandStats]
+  );
 
   // Compute max pulse count for intensity normalization
-  const maxPulses = Math.max(...data.map((d) => d.pulses), 1);
+  const maxPulses = useMemo(() => Math.max(...data.map((d) => d.pulses), 1), [data]);
 
   // Interpolate between base gray and accent based on intensity
   const getIntensityColor = (pulses: number): string => {
@@ -148,3 +152,5 @@ export default function FrequencySpectrum({
     </div>
   );
 }
+
+export default memo(FrequencySpectrum);

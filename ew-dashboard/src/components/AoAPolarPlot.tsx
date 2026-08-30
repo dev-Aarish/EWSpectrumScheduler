@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 
 interface PulseData {
   frequency: number[];
@@ -41,7 +41,7 @@ const LABEL_OFFSET = 18;
 const SVG_SIZE = (MAX_RADIUS + LABEL_OFFSET) * 2 + 16;
 const CENTER = SVG_SIZE / 2;
 
-export default function AoAPolarPlot({
+function AoAPolarPlot({
   pulseData,
   emitterTypes,
   emitterLabels,
@@ -280,3 +280,5 @@ function describeArc(
   const largeArc = endAngle - startAngle > 180 ? 1 : 0;
   return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 }
+
+export default memo(AoAPolarPlot);

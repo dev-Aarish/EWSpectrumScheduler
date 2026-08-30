@@ -9,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 
 interface PulseData {
   frequency: number[];
@@ -54,7 +54,7 @@ function CustomDot(props: any) {
   );
 }
 
-export default function ScatterPlot({
+function ScatterPlot({
   pulseData,
   emitterTypes,
   emitterLabels,
@@ -177,3 +177,5 @@ export default function ScatterPlot({
     </div>
   );
 }
+
+export default memo(ScatterPlot);

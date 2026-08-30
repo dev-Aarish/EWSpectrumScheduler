@@ -9,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 
 interface BandStats {
   band_id: number;
@@ -25,7 +25,7 @@ interface AmplitudeDistributionProps {
   selectedBand: number | null;
 }
 
-export default function AmplitudeDistribution({
+function AmplitudeDistribution({
   bandStats,
   selectedBand,
 }: AmplitudeDistributionProps) {
@@ -144,3 +144,5 @@ export default function AmplitudeDistribution({
     </div>
   );
 }
+
+export default memo(AmplitudeDistribution);

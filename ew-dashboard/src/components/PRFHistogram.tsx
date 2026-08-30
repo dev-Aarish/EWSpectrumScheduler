@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 
 interface PRFBin {
   range: string;
@@ -36,7 +36,7 @@ interface PRFHistogramProps {
   selectedBand: number | null;
 }
 
-export default function PRFHistogram({ prfData, selectedBand }: PRFHistogramProps) {
+function PRFHistogram({ prfData, selectedBand }: PRFHistogramProps) {
   const chartData = useMemo(() => {
     if (!prfData.overall.length) return [];
     // Merge overall + per-emitter data into a single array for stacked/grouped bars
@@ -175,3 +175,5 @@ export default function PRFHistogram({ prfData, selectedBand }: PRFHistogramProp
     </div>
   );
 }
+
+export default memo(PRFHistogram);

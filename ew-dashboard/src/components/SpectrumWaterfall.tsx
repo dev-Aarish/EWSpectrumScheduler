@@ -24,6 +24,8 @@ interface SpectrumWaterfallProps {
   onBandClick?: (band: number) => void;
 }
 
+const PADDING = { top: 8, right: 12, bottom: 24, left: 64 };
+
 export default function SpectrumWaterfall({
   waterfall,
   waterfallLabels,
@@ -46,18 +48,12 @@ export default function SpectrumWaterfall({
   } | null>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  const COLORS = {
-    transmission: "#C4523B",
-    transmissionHover: "#D4654E",
-    nonTransmission: "#1A1D22",
-    scanHighlight: "#D98E33",
-    scanGlow: "rgba(217, 142, 51, 0.12)",
-    gridLine: "#1E2128",
-    selectedBandBg: "rgba(217, 142, 51, 0.08)",
-    selectedBandBorder: "#D98E33",
-    hoveredBand: "rgba(155, 163, 173, 0.06)",
-    threatEmitter: "#A13A34",
-  };
+  // Cached heatmap — offscreen canvas for GPU-accelerated blit
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const heatmapCacheKeyRef = useRef<string>("");
+  const lastCanvasSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  const lastHoverTime = useRef(0);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -74,6 +70,7 @@ export default function SpectrumWaterfall({
     return () => observer.disconnect();
   }, []);
 
+  // Build the heatmap (cached via offscreen canvas — only redraws when data changes)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || dimensions.width === 0 || dimensions.height === 0) return;
@@ -82,112 +79,163 @@ export default function SpectrumWaterfall({
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = dimensions.width * dpr;
-    canvas.height = dimensions.height * dpr;
-    ctx.scale(dpr, dpr);
+    const canvasW = dimensions.width * dpr;
+    const canvasH = dimensions.height * dpr;
 
-    const padding = { top: 8, right: 12, bottom: 24, left: 64 };
-    const plotWidth = dimensions.width - padding.left - padding.right;
-    const plotHeight = dimensions.height - padding.top - padding.bottom;
+    // Only reset canvas dimensions when they actually change (avoids clear + context reset)
+    if (lastCanvasSizeRef.current.w !== canvasW || lastCanvasSizeRef.current.h !== canvasH) {
+      canvas.width = canvasW;
+      canvas.height = canvasH;
+      ctx.scale(dpr, dpr);
+      lastCanvasSizeRef.current = { w: canvasW, h: canvasH };
+      heatmapCacheKeyRef.current = ""; // Force full redraw
+    }
+
+    const plotWidth = dimensions.width - PADDING.left - PADDING.right;
+    const plotHeight = dimensions.height - PADDING.top - PADDING.bottom;
     const cellWidth = plotWidth / nTimeBins;
     const cellHeight = plotHeight / nBands;
 
-    // Clear
-    ctx.fillStyle = "#0E1013";
-    ctx.fillRect(0, 0, dimensions.width, dimensions.height);
+    // Check if we can reuse the cached offscreen heatmap
+    const cacheKey = `${waterfall.length}-${nBands}-${nTimeBins}-${selectedBand}-${JSON.stringify(scanHistory.slice(0, 5))}`;
+    if (offscreenCanvasRef.current && heatmapCacheKeyRef.current === cacheKey) {
+      // Fast GPU-accelerated blit from offscreen canvas
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(offscreenCanvasRef.current, 0, 0);
+      ctx.restore();
+    } else {
+      // Full heatmap draw to offscreen canvas
+      if (!offscreenCanvasRef.current) {
+        offscreenCanvasRef.current = document.createElement("canvas");
+      }
+      offscreenCanvasRef.current.width = canvasW;
+      offscreenCanvasRef.current.height = canvasH;
+      const offCtx = offscreenCanvasRef.current.getContext("2d");
+      if (!offCtx) return;
+      offCtx.scale(dpr, dpr);
 
-    // Draw horizontal grid lines (every few bands)
-    ctx.strokeStyle = COLORS.gridLine;
-    ctx.lineWidth = 0.5;
-    const gridStep = Math.max(1, Math.floor(nBands / 18));
-    for (let b = 0; b < nBands; b += gridStep) {
-      const y = padding.top + b * cellHeight;
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(padding.left + plotWidth, y);
-      ctx.stroke();
-    }
+      // Clear
+      offCtx.fillStyle = "#0E1013";
+      offCtx.fillRect(0, 0, dimensions.width, dimensions.height);
 
-    // Draw vertical grid lines
-    const tGridStep = Math.max(1, Math.floor(nTimeBins / 20));
-    for (let t = 0; t < nTimeBins; t += tGridStep) {
-      const x = padding.left + t * cellWidth;
-      ctx.beginPath();
-      ctx.moveTo(x, padding.top);
-      ctx.lineTo(x, padding.top + plotHeight);
-      ctx.stroke();
-    }
+      // Draw horizontal grid lines
+      offCtx.strokeStyle = "#1E2128";
+      offCtx.lineWidth = 0.5;
+      const gridStep = Math.max(1, Math.floor(nBands / 18));
+      for (let b = 0; b < nBands; b += gridStep) {
+        const y = PADDING.top + b * cellHeight;
+        offCtx.beginPath();
+        offCtx.moveTo(PADDING.left, y);
+        offCtx.lineTo(PADDING.left + plotWidth, y);
+        offCtx.stroke();
+      }
 
-    // Draw heatmap cells
-    for (let band = 0; band < nBands; band++) {
-      for (let t = 0; t < nTimeBins; t++) {
-        const x = padding.left + t * cellWidth;
-        const y = padding.top + band * cellHeight;
+      // Draw vertical grid lines
+      const tGridStep = Math.max(1, Math.floor(nTimeBins / 20));
+      for (let t = 0; t < nTimeBins; t += tGridStep) {
+        const x = PADDING.left + t * cellWidth;
+        offCtx.beginPath();
+        offCtx.moveTo(x, PADDING.top);
+        offCtx.lineTo(x, PADDING.top + plotHeight);
+        offCtx.stroke();
+      }
 
-        const isTransmission = waterfall[band][t] === 1;
-        const isScanned = t < scanHistory.length && scanHistory[t] === band;
-        const isSelected = selectedBand === band;
-        const isHovered = hoveredCell?.band === band;
+      // Precompute scan lookup
+      const scanLookup = new Set<number>();
+      for (let t = 0; t < scanHistory.length; t++) {
+        scanLookup.add(t * nBands + scanHistory[t]);
+      }
 
-        // Base cell
-        if (isTransmission) {
-          // Intensity based on label (higher label = more intense)
-          const label = waterfallLabels[band]?.[t] || 0;
-          const intensity = Math.min(1, label / 20);
-          const r = parseInt(COLORS.transmission.slice(1, 3), 16);
-          const g = parseInt(COLORS.transmission.slice(3, 5), 16);
-          const bVal = parseInt(COLORS.transmission.slice(5, 7), 16);
-          ctx.fillStyle = `rgba(${r}, ${g}, ${bVal}, ${0.5 + intensity * 0.5})`;
-        } else {
-          ctx.fillStyle = COLORS.nonTransmission;
-        }
+      // Precompute transmission RGB once
+      const tR = 0xC4, tG = 0x52, tB = 0x3B;
 
-        ctx.fillRect(x, y, cellWidth + 0.5, cellHeight + 0.5);
+      // Draw heatmap cells
+      for (let band = 0; band < nBands; band++) {
+        for (let t = 0; t < nTimeBins; t++) {
+          const x = PADDING.left + t * cellWidth;
+          const y = PADDING.top + band * cellHeight;
 
-        // Scan marker overlay
-        if (isScanned) {
-          ctx.fillStyle = "rgba(217, 142, 51, 0.25)";
-          ctx.fillRect(x, y, cellWidth + 0.5, cellHeight + 0.5);
+          const isTransmission = waterfall[band][t] === 1;
+          const isScanned = scanLookup.has(t * nBands + band);
+
+          if (isTransmission) {
+            const label = waterfallLabels[band]?.[t] || 0;
+            const intensity = Math.min(1, label / 20);
+            offCtx.fillStyle = `rgba(${tR}, ${tG}, ${tB}, ${0.5 + intensity * 0.5})`;
+          } else {
+            offCtx.fillStyle = "#1A1D22";
+          }
+
+          offCtx.fillRect(x, y, cellWidth + 0.5, cellHeight + 0.5);
+
+          if (isScanned) {
+            offCtx.fillStyle = "rgba(217, 142, 51, 0.25)";
+            offCtx.fillRect(x, y, cellWidth + 0.5, cellHeight + 0.5);
+          }
         }
       }
+
+      // Selected band highlight
+      if (selectedBand !== null && selectedBand >= 0 && selectedBand < nBands) {
+        const y = PADDING.top + selectedBand * cellHeight;
+        offCtx.fillStyle = "rgba(217, 142, 51, 0.08)";
+        offCtx.fillRect(PADDING.left, y, plotWidth, cellHeight);
+        offCtx.strokeStyle = "#D98E33";
+        offCtx.lineWidth = 1.5;
+        offCtx.setLineDash([]);
+        offCtx.strokeRect(PADDING.left + 0.5, y + 0.5, plotWidth - 1, cellHeight - 1);
+        offCtx.fillStyle = "#D98E33";
+        offCtx.font = "bold 10px 'IBM Plex Mono', monospace";
+        offCtx.textAlign = "right";
+        offCtx.textBaseline = "middle";
+        offCtx.fillText(`B${selectedBand}`, PADDING.left - 4, y + cellHeight / 2);
+      }
+
+      // Y-axis labels
+      offCtx.fillStyle = "#5C636D";
+      offCtx.font = "9px 'IBM Plex Mono', monospace";
+      offCtx.textAlign = "right";
+      offCtx.textBaseline = "middle";
+      const labelStep = Math.max(1, Math.floor(nBands / 12));
+      for (let band = 0; band < nBands; band += labelStep) {
+        const y = PADDING.top + band * cellHeight + cellHeight / 2;
+        const freq = dwellCentres[band];
+        offCtx.fillText(`${freq.toFixed(0)}`, PADDING.left - 8, y);
+      }
+
+      // Y-axis title
+      offCtx.save();
+      offCtx.translate(10, PADDING.top + plotHeight / 2);
+      offCtx.rotate(-Math.PI / 2);
+      offCtx.fillStyle = "#3A3F46";
+      offCtx.font = "8px 'IBM Plex Mono', monospace";
+      offCtx.textAlign = "center";
+      offCtx.fillText("FREQ (MHz)", 0, 0);
+      offCtx.restore();
+
+      // X-axis time markers
+      offCtx.fillStyle = "#3A3F46";
+      offCtx.font = "8px 'IBM Plex Mono', monospace";
+      offCtx.textAlign = "center";
+      const tLabelStep = Math.max(1, Math.floor(nTimeBins / 10));
+      for (let t = 0; t < nTimeBins; t += tLabelStep) {
+        const x = PADDING.left + t * cellWidth;
+        offCtx.fillText(`t${t}`, x, dimensions.height - 6);
+      }
+
+      // Copy to main canvas
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(offscreenCanvasRef.current, 0, 0);
+      ctx.restore();
+
+      heatmapCacheKeyRef.current = cacheKey;
     }
 
-    // Selected band highlight
-    if (selectedBand !== null && selectedBand >= 0 && selectedBand < nBands) {
-      const y = padding.top + selectedBand * cellHeight;
-
-      // Background highlight
-      ctx.fillStyle = COLORS.selectedBandBg;
-      ctx.fillRect(padding.left, y, plotWidth, cellHeight);
-
-      // Border
-      ctx.strokeStyle = COLORS.selectedBandBorder;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([]);
-      ctx.strokeRect(padding.left + 0.5, y + 0.5, plotWidth - 1, cellHeight - 1);
-
-      // Band label
-      ctx.fillStyle = COLORS.selectedBandBorder;
-      ctx.font = "bold 10px 'IBM Plex Mono', monospace";
-      ctx.textAlign = "right";
-      ctx.textBaseline = "middle";
-      ctx.fillText(
-        `B${selectedBand}`,
-        padding.left - 4,
-        y + cellHeight / 2
-      );
-    }
-
-    // Hovered band highlight
-    if (hoveredCell && hoveredCell.band !== selectedBand) {
-      const y = padding.top + hoveredCell.band * cellHeight;
-      ctx.fillStyle = COLORS.hoveredBand;
-      ctx.fillRect(padding.left, y, plotWidth, cellHeight);
-    }
-
-    // Current scan step marker
+    // --- Draw dynamic overlay (sweep line) — cheap, runs every frame ---
     if (currentScanStep >= 0 && currentScanStep < nTimeBins) {
-      const x = padding.left + currentScanStep * cellWidth;
+      const x = PADDING.left + currentScanStep * cellWidth;
 
       // Glow region
       const gradient = ctx.createLinearGradient(x - 30, 0, x + 30, 0);
@@ -195,23 +243,23 @@ export default function SpectrumWaterfall({
       gradient.addColorStop(0.5, "rgba(217, 142, 51, 0.08)");
       gradient.addColorStop(1, "rgba(217, 142, 51, 0)");
       ctx.fillStyle = gradient;
-      ctx.fillRect(x - 30, padding.top, 60, plotHeight);
+      ctx.fillRect(x - 30, PADDING.top, 60, plotHeight);
 
       // Sweep line
-      ctx.strokeStyle = COLORS.scanHighlight;
+      ctx.strokeStyle = "#D98E33";
       ctx.lineWidth = 1.5;
       ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.moveTo(x, padding.top);
-      ctx.lineTo(x, padding.top + plotHeight);
+      ctx.moveTo(x, PADDING.top);
+      ctx.lineTo(x, PADDING.top + plotHeight);
       ctx.stroke();
 
       // Triangle marker at top
-      ctx.fillStyle = COLORS.scanHighlight;
+      ctx.fillStyle = "#D98E33";
       ctx.beginPath();
-      ctx.moveTo(x - 4, padding.top - 2);
-      ctx.lineTo(x + 4, padding.top - 2);
-      ctx.lineTo(x, padding.top + 4);
+      ctx.moveTo(x - 4, PADDING.top - 2);
+      ctx.lineTo(x + 4, PADDING.top - 2);
+      ctx.lineTo(x, PADDING.top + 4);
       ctx.closePath();
       ctx.fill();
 
@@ -219,46 +267,13 @@ export default function SpectrumWaterfall({
       if (currentScanStep < scanHistory.length) {
         const currentBand = scanHistory[currentScanStep];
         if (currentBand >= 0 && currentBand < nBands) {
-          const y = padding.top + currentBand * cellHeight;
-          ctx.strokeStyle = COLORS.scanHighlight;
+          const y = PADDING.top + currentBand * cellHeight;
+          ctx.strokeStyle = "#D98E33";
           ctx.lineWidth = 2;
           ctx.setLineDash([]);
           ctx.strokeRect(x - cellWidth / 2, y, cellWidth, cellHeight);
         }
       }
-    }
-
-    // Y-axis labels
-    ctx.fillStyle = "#5C636D";
-    ctx.font = "9px 'IBM Plex Mono', monospace";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-
-    const labelStep = Math.max(1, Math.floor(nBands / 12));
-    for (let band = 0; band < nBands; band += labelStep) {
-      const y = padding.top + band * cellHeight + cellHeight / 2;
-      const freq = dwellCentres[band];
-      ctx.fillText(`${freq.toFixed(0)}`, padding.left - 8, y);
-    }
-
-    // Y-axis title
-    ctx.save();
-    ctx.translate(10, padding.top + plotHeight / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillStyle = "#3A3F46";
-    ctx.font = "8px 'IBM Plex Mono', monospace";
-    ctx.textAlign = "center";
-    ctx.fillText("FREQ (MHz)", 0, 0);
-    ctx.restore();
-
-    // X-axis time markers
-    ctx.fillStyle = "#3A3F46";
-    ctx.font = "8px 'IBM Plex Mono', monospace";
-    ctx.textAlign = "center";
-    const tLabelStep = Math.max(1, Math.floor(nTimeBins / 10));
-    for (let t = 0; t < nTimeBins; t += tLabelStep) {
-      const x = padding.left + t * cellWidth;
-      ctx.fillText(`t${t}`, x, dimensions.height - 6);
     }
   }, [
     waterfall,
@@ -270,20 +285,21 @@ export default function SpectrumWaterfall({
     dwellCentres,
     currentScanStep,
     dimensions,
-    hoveredCell,
   ]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const now = performance.now();
+      if (now - lastHoverTime.current < 32) return;
+      lastHoverTime.current = now;
+
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
-      const padding = { top: 8, right: 12, bottom: 24, left: 64 };
-      const plotHeight = dimensions.height - padding.top - padding.bottom;
+      const plotHeight = dimensions.height - PADDING.top - PADDING.bottom;
       const cellHeight = plotHeight / nBands;
 
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top - padding.top;
+      const y = e.clientY - rect.top - PADDING.top;
       const band = Math.floor(y / cellHeight);
 
       if (band >= 0 && band < nBands) {
