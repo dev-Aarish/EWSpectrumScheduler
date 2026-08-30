@@ -21,6 +21,8 @@ SCAN_DIR = Path("../scan")
 # Feature names
 FEATURE_NAMES = ["ToA", "Frequency", "PulseWidth", "AoA", "Amplitude"]
 
+MAX_SCATTER_PULSES = 2000  # Max pulses for scatter plot data (downsample large configs)
+
 EMITTER_TYPE_COLORS = {
     "Fixed-Frequency": "bg-[#C4523B]",
     "PRF Agile": "bg-[#D98E33]",
@@ -201,6 +203,27 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
             })
             scan_history.append(int(band_choice))
         
+        # Build pulse-level scatter data (Frequency vs AoA colored by emitter)
+        n_total = len(data)
+        if n_total <= MAX_SCATTER_PULSES:
+            scatter_indices = np.arange(n_total)
+        else:
+            # Reservoir sampling for uniform downsample
+            rng = np.random.default_rng(42)
+            scatter_indices = np.arange(MAX_SCATTER_PULSES)
+            for i in range(MAX_SCATTER_PULSES, n_total):
+                j = rng.integers(0, i + 1)
+                if j < MAX_SCATTER_PULSES:
+                    scatter_indices[j] = i
+
+        pulse_data = {
+            "frequency": np.round(data[scatter_indices, 1], 2).tolist(),
+            "aoa": np.round(data[scatter_indices, 3], 2).tolist(),
+            "amplitude": np.round(data[scatter_indices, 4], 2).tolist(),
+            "toa": np.round(data[scatter_indices, 0], 2).tolist(),
+            "emitter_label": labels[scatter_indices].astype(int).tolist(),
+        }
+
         return {
             "config_id": Path(h5_path).stem,
             "n_pulses": len(data),
@@ -213,6 +236,7 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
             "waterfall": waterfall.tolist(),
             "waterfall_labels": waterfall_labels.tolist(),
             "band_stats": band_stats,
+            "pulse_data": pulse_data,
             "scheduler_decisions": scheduler_decisions,
             "scan_history": scan_history,
             "n_time_bins": n_time_bins

@@ -19,6 +19,7 @@ import EmitterDetailPanel from "@/components/EmitterDetailPanel";
 import DecisionLog from "@/components/DecisionLog";
 import DatasetExplorer from "@/components/DatasetExplorer";
 import ScanTimeline from "@/components/ScanTimeline";
+import ScatterPlot from "@/components/ScatterPlot";
 
 interface ConfigData {
   config_id: string;
@@ -47,6 +48,13 @@ interface ConfigData {
     actual_detection: boolean;
     timestamp: number;
   }[];
+  pulse_data: {
+    frequency: number[];
+    aoa: number[];
+    amplitude: number[];
+    toa: number[];
+    emitter_label: number[];
+  };
   scan_history: number[];
   n_time_bins: number;
 }
@@ -363,7 +371,7 @@ export default function Dashboard() {
                 />
               )}
               {bottomTab === "charts" && (
-                <div className="h-full grid grid-cols-2 gap-0 divide-x divide-[#22262D]">
+                <div className="h-full grid grid-cols-3 gap-0 divide-x divide-[#22262D]">
                   <FrequencySpectrum
                     bandStats={configData.band_stats}
                     selectedBand={selectedBand}
@@ -372,6 +380,11 @@ export default function Dashboard() {
                   <AmplitudeDistribution
                     bandStats={configData.band_stats}
                     selectedBand={selectedBand}
+                  />
+                  <ScatterPlot
+                    pulseData={configData.pulse_data}
+                    emitterTypes={configData.emitter_types ?? []}
+                    emitterLabels={[...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)}
                   />
                 </div>
               )}
