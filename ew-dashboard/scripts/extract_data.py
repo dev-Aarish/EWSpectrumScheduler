@@ -22,6 +22,7 @@ SCAN_DIR = Path("../scan")
 FEATURE_NAMES = ["ToA", "Frequency", "PulseWidth", "AoA", "Amplitude"]
 
 MAX_SCATTER_PULSES = 2000  # Max pulses for scatter plot data (downsample large configs)
+MAX_PRF_BINS = 50  # Max bins for PRF histogram
 
 EMITTER_TYPE_COLORS = {
     "Fixed-Frequency": "bg-[#C4523B]",
@@ -83,6 +84,99 @@ def extract_emitter_types(tx_group) -> list:
         for label, count in counts.items()
         if count > 0
     ]
+
+
+def compute_prf_data(toa: np.ndarray, labels: np.ndarray, n_bands: int, band_indices: np.ndarray) -> dict:
+    """Compute PRF (Pulse Repetition Frequency) data from inter-pulse intervals.
+    
+    PRF = 1 / ToI (inter-pulse interval) in Hz.
+    Returns overall PRF histogram and per-emitter-type overlays.
+    """
+    sorted_idx = np.argsort(toa)
+    toa_sorted = toa[sorted_idx]
+    labels_sorted = labels[sorted_idx]
+    bands_sorted = band_indices[sorted_idx]
+
+    # Overall inter-pulse intervals
+    toi = np.diff(toa_sorted)  # in microseconds
+    toi = toi[toi > 0]  # remove zero/negative intervals
+    if len(toi) == 0:
+        return {"overall": [], "per_emitter": [], "toi_range": [0, 0]}
+
+    prf_hz = 1e6 / toi  # convert microseconds to Hz
+
+    # Clamp to reasonable range for display (1 Hz to 500 kHz)
+    prf_clamped = np.clip(prf_hz, 1, 500_000)
+
+    # Overall histogram
+    log_min = np.log10(prf_clamped.min())
+    log_max = np.log10(prf_clamped.max())
+    n_bins = min(MAX_PRF_BINS, max(10, int(np.sqrt(len(prf_clamped)))))
+
+    if log_max - log_min < 1e-6:
+        # All values are essentially the same
+        overall = [{"range": f"{prf_clamped[0]:.0f}", "count": len(prf_clamped), "min": float(prf_clamped[0]), "binSize": 1.0}]
+        per_emitter = []
+        return {"overall": overall, "per_emitter": per_emitter, "toi_range": [float(toi.min()), float(toi.max())]}
+
+    log_edges = np.linspace(log_min, log_max, n_bins + 1)
+    edges = 10 ** log_edges
+
+    overall_bins = []
+    for i in range(n_bins):
+        lo, hi = edges[i], edges[i + 1]
+        count = int(np.sum((prf_clamped >= lo) & (prf_clamped < hi)))
+        if i == n_bins - 1:
+            count = int(np.sum((prf_clamped >= lo) & (prf_clamped <= hi)))
+        label = f"{lo:.0f}" if lo >= 100 else f"{lo:.1f}"
+        overall_bins.append({
+            "range": label,
+            "count": count,
+            "min": float(lo),
+            "binSize": float(hi - lo),
+        })
+
+    # Per-emitter PRF histograms
+    unique_labels = sorted(set(labels_sorted))
+    per_emitter = []
+    emitter_colors = ["#C4523B", "#D98E33", "#5E8C6A", "#B8763E", "#6B7B8D", "#9B59B6", "#3498DB"]
+
+    for idx, lbl in enumerate(unique_labels):
+        mask = labels_sorted == lbl
+        if mask.sum() < 2:
+            continue
+        emitter_toa = toa_sorted[mask]
+        emitter_toi = np.diff(emitter_toa)
+        emitter_toi = emitter_toi[emitter_toi > 0]
+        if len(emitter_toi) == 0:
+            continue
+        emitter_prf = np.clip(1e6 / emitter_toi, 1, 500_000)
+
+        # Use the same bin edges as overall for consistency
+        emitter_bins = []
+        for i in range(n_bins):
+            lo, hi = edges[i], edges[i + 1]
+            count = int(np.sum((emitter_prf >= lo) & (emitter_prf < hi)))
+            if i == n_bins - 1:
+                count = int(np.sum((emitter_prf >= lo) & (emitter_prf <= hi)))
+            emitter_bins.append({
+                "range": f"{lo:.0f}" if lo >= 100 else f"{lo:.1f}",
+                "count": count,
+                "min": float(lo),
+                "binSize": float(hi - lo),
+            })
+
+        per_emitter.append({
+            "label": f"Emitter #{int(lbl)}",
+            "color": emitter_colors[idx % len(emitter_colors)],
+            "data": emitter_bins,
+        })
+
+    return {
+        "overall": overall_bins,
+        "per_emitter": per_emitter,
+        "toi_range": [float(toi.min()), float(toi.max())],
+    }
 
 
 def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
@@ -224,6 +318,9 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
             "emitter_label": labels[scatter_indices].astype(int).tolist(),
         }
 
+        # Compute PRF (Pulse Repetition Frequency) data
+        prf_data = compute_prf_data(toa, labels, n_bands, band_indices)
+
         return {
             "config_id": Path(h5_path).stem,
             "n_pulses": len(data),
@@ -237,6 +334,7 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
             "waterfall_labels": waterfall_labels.tolist(),
             "band_stats": band_stats,
             "pulse_data": pulse_data,
+            "prf_data": prf_data,
             "scheduler_decisions": scheduler_decisions,
             "scan_history": scan_history,
             "n_time_bins": n_time_bins

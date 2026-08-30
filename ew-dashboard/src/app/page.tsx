@@ -22,6 +22,7 @@ import DecisionLog from "@/components/DecisionLog";
 import DatasetExplorer from "@/components/DatasetExplorer";
 import ScanTimeline from "@/components/ScanTimeline";
 import ScatterPlot from "@/components/ScatterPlot";
+import PRFHistogram from "@/components/PRFHistogram";
 
 interface ConfigData {
   config_id: string;
@@ -56,6 +57,15 @@ interface ConfigData {
     amplitude: number[];
     toa: number[];
     emitter_label: number[];
+  };
+  prf_data: {
+    overall: { range: string; count: number; min: number; binSize: number }[];
+    per_emitter: {
+      label: string;
+      color: string;
+      data: { range: string; count: number; min: number; binSize: number }[];
+    }[];
+    toi_range: number[];
   };
   scan_history: number[];
   n_time_bins: number;
@@ -427,6 +437,13 @@ export default function Dashboard() {
                       pulseData={configData.pulse_data}
                       emitterTypes={configData.emitter_types ?? []}
                       emitterLabels={[...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)}
+                    />
+                  </div>
+                  <div />
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
+                    <PRFHistogram
+                      prfData={configData.prf_data}
+                      selectedBand={selectedBand}
                     />
                   </div>
                 </div>
