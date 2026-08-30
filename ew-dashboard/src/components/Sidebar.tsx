@@ -19,6 +19,7 @@ interface SidebarProps {
   nBands: number;
   freqRange: [number, number];
   emitterTypes: { label: string; count: number; color: string }[];
+  headerRight?: React.ReactNode;
 }
 
 export default function Sidebar({
@@ -28,6 +29,7 @@ export default function Sidebar({
   nBands,
   freqRange,
   emitterTypes,
+  headerRight,
 }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState({
     bands: true,
@@ -75,12 +77,15 @@ export default function Sidebar({
   };
 
   return (
-    <aside className="w-56 bg-[#12151A] border-r border-[#22262D] flex flex-col overflow-hidden">
+    <aside className="bg-[#12151A] border-r border-[#22262D] flex flex-col overflow-hidden h-full">
       {/* Header */}
       <div className="p-3 border-b border-[#22262D]">
-        <div className="section-label flex items-center gap-2">
-          <Layers size={12} />
-          <span>Configuration</span>
+        <div className="section-label flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers size={12} />
+            <span>Configuration</span>
+          </div>
+          {headerRight}
         </div>
         <div className="mt-2 font-mono text-[11px] text-[#9BA3AD]">
           <div className="flex justify-between">

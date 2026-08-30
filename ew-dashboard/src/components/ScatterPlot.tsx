@@ -43,6 +43,17 @@ function tailwindToHex(tw: string): string {
   return EMITTER_COLORS[tw] ?? "#9BA3AD";
 }
 
+function CustomDot(props: any) {
+  const { cx, cy, fill, payload } = props;
+  if (cx == null || cy == null) return null;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={8} fill="transparent" />
+      <circle cx={cx} cy={cy} r={2.5} fill={fill} fillOpacity={0.6} stroke={fill} strokeWidth={0.5} strokeOpacity={0.8} />
+    </g>
+  );
+}
+
 export default function ScatterPlot({
   pulseData,
   emitterTypes,
@@ -156,7 +167,7 @@ export default function ScatterPlot({
                 data={groupedData.get(lbl) ?? []}
                 fill={labelToColor.get(lbl) ?? "#9BA3AD"}
                 fillOpacity={0.6}
-                r={1.5}
+                shape={<CustomDot color={labelToColor.get(lbl) ?? "#9BA3AD"} />}
                 isAnimationActive={false}
               />
             ))}

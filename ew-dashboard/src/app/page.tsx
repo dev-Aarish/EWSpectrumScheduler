@@ -7,8 +7,10 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Maximize2,
-  Minimize2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import StatusBar from "@/components/StatusBar";
 import Sidebar from "@/components/Sidebar";
@@ -96,6 +98,8 @@ export default function Dashboard() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(100);
   const [bottomTab, setBottomTab] = useState<"log" | "explorer" | "charts">("charts");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
 
   // Load config list
   useEffect(() => {
@@ -177,7 +181,7 @@ export default function Dashboard() {
       : 0;
 
   return (
-    <div className="h-screen flex flex-col bg-[#0B0D0F] overflow-hidden">
+    <div className="h-screen flex flex-col bg-[#0B0D0F]">
       {/* Top status bar */}
       <StatusBar
         systemMode="replay"
@@ -189,164 +193,188 @@ export default function Dashboard() {
 
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left sidebar */}
-        <Sidebar
-          bandStats={configData.band_stats}
-          selectedBand={selectedBand}
-          onBandSelect={setSelectedBand}
-          nBands={configData.n_bands}
-          freqRange={[
-            configData.freq_range_mhz[0],
-            configData.freq_range_mhz[1],
-          ]}
-          emitterTypes={configData.emitter_types ?? []}
-        />
-
-        {/* Center panel */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          {/* Waterfall header with controls */}
-          <div className="px-3 py-1.5 bg-[#12151A] border-b border-[#22262D] flex items-center gap-3">
-            <span className="section-label shrink-0">Spectrum Waterfall</span>
-
-            {/* Config selector */}
-            <select
-              value={currentConfigId}
-              onChange={(e) => setCurrentConfigId(e.target.value)}
-              className="bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50 shrink-0"
-            >
-              {configs.map((id) => (
-                <option key={id} value={id}>
-                  {id}
-                </option>
-              ))}
-            </select>
-
-            {/* Divider */}
-            <div className="w-px h-4 bg-[#22262D]" />
-
-            {/* Playback controls */}
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="p-1 bg-[#D98E33]/10 border border-[#D98E33]/30 text-[#D98E33] rounded hover:bg-[#D98E33]/20 transition-colors"
-              title={isPlaying ? "Pause" : "Play"}
-            >
-              {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-            </button>
-            <button
-              onClick={() => {
-                setScanStep(0);
-                setIsPlaying(false);
-              }}
-              className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
-              title="Reset"
-            >
-              <RotateCcw size={12} />
-            </button>
-            <button
-              onClick={() => setScanStep((p) => Math.max(0, p - 1))}
-              className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
-            >
-              <ChevronLeft size={12} />
-            </button>
-            <button
-              onClick={() =>
-                setScanStep((p) =>
-                  Math.min(configData.n_time_bins - 1, p + 1)
-                )
-              }
-              className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
-            >
-              <ChevronRight size={12} />
-            </button>
-
-            {/* Step counter */}
-            <span className="text-[11px] font-mono text-[#D98E33] tabular-nums shrink-0">
-              {scanStep}/{configData.n_time_bins}
-            </span>
-
-            {/* Divider */}
-            <div className="w-px h-4 bg-[#22262D]" />
-
-            {/* Speed control */}
-            <div className="flex items-center gap-1 text-[10px] font-mono text-[#5C636D]">
-              <span>Speed:</span>
-              {[200, 100, 50, 25].map((speed) => (
+        {/* Left sidebar — collapsible with transition */}
+        <div
+          style={{
+            width: sidebarCollapsed ? 40 : 224,
+            transition: "width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
+          }}
+          className="bg-[#12151A] border-r border-[#22262D] flex-shrink-0 overflow-hidden relative"
+        >
+          {/* Expanded content */}
+          <div
+            className="h-full flex flex-col"
+            style={{
+              opacity: sidebarCollapsed ? 0 : 1,
+              transition: "opacity 0.35s ease-in-out",
+              pointerEvents: sidebarCollapsed ? "none" : "auto",
+            }}
+          >
+            <Sidebar
+              bandStats={configData.band_stats}
+              selectedBand={selectedBand}
+              onBandSelect={setSelectedBand}
+              nBands={configData.n_bands}
+              freqRange={[
+                configData.freq_range_mhz[0],
+                configData.freq_range_mhz[1],
+              ]}
+              emitterTypes={configData.emitter_types ?? []}
+              headerRight={
                 <button
-                  key={speed}
-                  onClick={() => setPlaySpeed(speed)}
-                  className={`px-1.5 py-0.5 rounded transition-colors ${
-                    playSpeed === speed
-                      ? "bg-[#D98E33]/20 text-[#D98E33]"
-                      : "hover:bg-[#181C22]"
-                  }`}
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="p-1 rounded hover:bg-[#181C22] transition-colors text-[#5C636D] hover:text-[#9BA3AD]"
+                  title="Collapse Configuration"
                 >
-                  {speed === 200 ? "0.5x" : speed === 100 ? "1x" : speed === 50 ? "2x" : "4x"}
+                  <PanelLeftClose size={12} />
                 </button>
-              ))}
-            </div>
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Quick stats inline */}
-            <div className="flex items-center gap-3 text-[10px] font-mono shrink-0">
-              <span className="text-[#5C636D]">
-                Hit Rate:{" "}
-                <span className="text-[#5E8C6A] tabular-nums">
-                  {hitRate.toFixed(1)}%
-                </span>
-              </span>
-              <span className="text-[#5C636D]">
-                Conf:{" "}
-                <span className="text-[#D98E33] tabular-nums">
-                  {(avgConfidence * 100).toFixed(1)}%
-                </span>
-              </span>
-              <span className="text-[#5C636D]">
-                Active:{" "}
-                <span className="text-[#E8EAED] tabular-nums">
-                  {activeBandsCount}/{configData.n_bands}
-                </span>
-              </span>
+              }
+            />
+          </div>
+          {/* Collapsed content */}
+          <div
+            className="absolute inset-0 flex flex-col items-center py-2"
+            style={{
+              opacity: sidebarCollapsed ? 1 : 0,
+              transition: "opacity 0.35s ease-in-out",
+              pointerEvents: sidebarCollapsed ? "auto" : "none",
+            }}
+          >
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="p-1.5 rounded hover:bg-[#181C22] transition-colors text-[#5C636D] hover:text-[#9BA3AD]"
+              title="Expand Configuration"
+            >
+              <PanelLeftOpen size={14} />
+            </button>
+            <div className="mt-2 flex-1 flex items-center justify-center" style={{ writingMode: "vertical-rl" }}>
+              <span className="section-label text-[9px] tracking-widest">CONFIG</span>
             </div>
           </div>
+        </div>
 
-          {/* Spectrum waterfall */}
-          <SpectrumWaterfall
-            waterfall={configData.waterfall}
-            waterfallLabels={configData.waterfall_labels}
-            nBands={configData.n_bands}
-            nTimeBins={configData.n_time_bins}
-            selectedBand={selectedBand}
-            scanHistory={configData.scan_history}
-            dwellCentres={configData.dwell_centres_mhz}
-            currentScanStep={scanStep}
-            bandStats={configData.band_stats}
-            onBandClick={setSelectedBand}
-          />
+        {/* Center panel — scrollable */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            {/* Waterfall + Timeline (fixed height section) */}
+            <div className="flex-shrink-0">
+              <div className="h-[420px] flex flex-col">
+                <SpectrumWaterfall
+                  waterfall={configData.waterfall}
+                  waterfallLabels={configData.waterfall_labels}
+                  nBands={configData.n_bands}
+                  nTimeBins={configData.n_time_bins}
+                  selectedBand={selectedBand}
+                  scanHistory={configData.scan_history}
+                  dwellCentres={configData.dwell_centres_mhz}
+                  currentScanStep={scanStep}
+                  bandStats={configData.band_stats}
+                  onBandClick={setSelectedBand}
+                />
+              </div>
+              <ScanTimeline
+                scanHistory={configData.scan_history}
+                waterfall={configData.waterfall}
+                dwellCentres={configData.dwell_centres_mhz}
+                currentStep={scanStep}
+                onStepClick={setScanStep}
+                nBands={configData.n_bands}
+              />
+            </div>
 
-          {/* Scan timeline */}
-          <ScanTimeline
-            scanHistory={configData.scan_history}
-            waterfall={configData.waterfall}
-            dwellCentres={configData.dwell_centres_mhz}
-            currentStep={scanStep}
-            onStepClick={setScanStep}
-            nBands={configData.n_bands}
-          />
+            {/* Controls bar */}
+            <div className="px-3 py-2 bg-[#12151A] border-y border-[#22262D] flex items-center gap-3 flex-shrink-0">
+              <span className="section-label shrink-0">Controls</span>
 
-          {/* Bottom panel with tabs */}
-          <div className="h-48 bg-[#12151A] border-t border-[#22262D] flex flex-col">
+              <select
+                value={currentConfigId}
+                onChange={(e) => setCurrentConfigId(e.target.value)}
+                className="bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50 shrink-0"
+              >
+                {configs.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+
+              <div className="w-px h-4 bg-[#22262D]" />
+
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="p-1 bg-[#D98E33]/10 border border-[#D98E33]/30 text-[#D98E33] rounded hover:bg-[#D98E33]/20 transition-colors"
+                title={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause size={12} /> : <Play size={12} />}
+              </button>
+              <button
+                onClick={() => { setScanStep(0); setIsPlaying(false); }}
+                className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
+                title="Reset"
+              >
+                <RotateCcw size={12} />
+              </button>
+              <button
+                onClick={() => setScanStep((p) => Math.max(0, p - 1))}
+                className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
+              >
+                <ChevronLeft size={12} />
+              </button>
+              <button
+                onClick={() => setScanStep((p) => Math.min(configData.n_time_bins - 1, p + 1))}
+                className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
+              >
+                <ChevronRight size={12} />
+              </button>
+
+              <span className="text-[11px] font-mono text-[#D98E33] tabular-nums shrink-0">
+                {scanStep}/{configData.n_time_bins}
+              </span>
+
+              <div className="w-px h-4 bg-[#22262D]" />
+
+              <div className="flex items-center gap-1 text-[10px] font-mono text-[#5C636D]">
+                <span>Speed:</span>
+                {[200, 100, 50, 25].map((speed) => (
+                  <button
+                    key={speed}
+                    onClick={() => setPlaySpeed(speed)}
+                    className={`px-1.5 py-0.5 rounded transition-colors ${
+                      playSpeed === speed
+                        ? "bg-[#D98E33]/20 text-[#D98E33]"
+                        : "hover:bg-[#181C22]"
+                    }`}
+                  >
+                    {speed === 200 ? "0.5x" : speed === 100 ? "1x" : speed === 50 ? "2x" : "4x"}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1" />
+
+              <div className="flex items-center gap-3 text-[10px] font-mono shrink-0">
+                <span className="text-[#5C636D]">
+                  Hit Rate: <span className="text-[#5E8C6A] tabular-nums">{hitRate.toFixed(1)}%</span>
+                </span>
+                <span className="text-[#5C636D]">
+                  Conf: <span className="text-[#D98E33] tabular-nums">{(avgConfidence * 100).toFixed(1)}%</span>
+                </span>
+                <span className="text-[#5C636D]">
+                  Active: <span className="text-[#E8EAED] tabular-nums">{activeBandsCount}/{configData.n_bands}</span>
+                </span>
+              </div>
+            </div>
+
             {/* Tab bar */}
-            <div className="flex border-b border-[#22262D]">
+            <div className="flex border-b border-[#22262D] bg-[#12151A] flex-shrink-0">
               {[
+                { key: "charts" as const, label: "Charts" },
                 { key: "log" as const, label: "Scheduler Log" },
                 { key: "explorer" as const, label: "Dataset Explorer" },
-                { key: "charts" as const, label: "Frequency Analysis" },
               ].map((tab) => (
                 <button
                   key={tab.key}
-                  onClick={() => setBottomTab(tab.key as any)}
+                  onClick={() => setBottomTab(tab.key)}
                   className={`px-4 py-1.5 text-[11px] font-mono border-b-2 transition-colors ${
                     bottomTab === tab.key
                       ? "border-[#D98E33] text-[#D98E33] bg-[#181C22]"
@@ -359,48 +387,105 @@ export default function Dashboard() {
             </div>
 
             {/* Tab content */}
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="bg-[#0B0D0F]">
               {bottomTab === "log" && (
-                <DecisionLog decisions={configData.scheduler_decisions} currentStep={scanStep} />
+                <div className="h-[400px]">
+                  <DecisionLog decisions={configData.scheduler_decisions} currentStep={scanStep} />
+                </div>
               )}
               {bottomTab === "explorer" && (
-                <DatasetExplorer
-                  testStats={testStats}
-                  currentConfigId={currentConfigId}
-                  onConfigSelect={setCurrentConfigId}
-                />
+                <div className="h-[500px]">
+                  <DatasetExplorer
+                    testStats={testStats}
+                    currentConfigId={currentConfigId}
+                    onConfigSelect={setCurrentConfigId}
+                  />
+                </div>
               )}
               {bottomTab === "charts" && (
-                <div className="h-full grid grid-cols-3 gap-0 divide-x divide-[#22262D]">
-                  <FrequencySpectrum
-                    bandStats={configData.band_stats}
-                    selectedBand={selectedBand}
-                    onBandSelect={setSelectedBand}
-                  />
-                  <AmplitudeDistribution
-                    bandStats={configData.band_stats}
-                    selectedBand={selectedBand}
-                  />
-                  <ScatterPlot
-                    pulseData={configData.pulse_data}
-                    emitterTypes={configData.emitter_types ?? []}
-                    emitterLabels={[...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)}
-                  />
+                <div className="grid grid-cols-2 gap-3 p-3">
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
+                    <FrequencySpectrum
+                      bandStats={configData.band_stats}
+                      selectedBand={selectedBand}
+                      onBandSelect={setSelectedBand}
+                    />
+                  </div>
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
+                    <AmplitudeDistribution
+                      bandStats={configData.band_stats}
+                      selectedBand={selectedBand}
+                    />
+                  </div>
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
+                    <ScatterPlot
+                      pulseData={configData.pulse_data}
+                      emitterTypes={configData.emitter_types ?? []}
+                      emitterLabels={[...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)}
+                    />
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right panel - Emitter Detail / Metrics */}
-        <EmitterDetailPanel
-          bandStats={configData.band_stats}
-          selectedBand={selectedBand}
-          onBandSelect={setSelectedBand}
-          dwellCentres={configData.dwell_centres_mhz}
-          waterfall={configData.waterfall}
-          scanHistory={configData.scan_history}
-        />
+        {/* Right panel — collapsible with transition */}
+        <div
+          style={{
+            width: inspectorCollapsed ? 40 : 288,
+            transition: "width 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)",
+          }}
+          className="bg-[#12151A] border-l border-[#22262D] flex-shrink-0 overflow-hidden relative"
+        >
+          {/* Expanded content */}
+          <div
+            className="h-full flex flex-col"
+            style={{
+              opacity: inspectorCollapsed ? 0 : 1,
+              transition: "opacity 0.35s ease-in-out",
+              pointerEvents: inspectorCollapsed ? "none" : "auto",
+            }}
+          >
+            <EmitterDetailPanel
+              bandStats={configData.band_stats}
+              selectedBand={selectedBand}
+              onBandSelect={setSelectedBand}
+              dwellCentres={configData.dwell_centres_mhz}
+              waterfall={configData.waterfall}
+              scanHistory={configData.scan_history}
+              headerRight={
+                <button
+                  onClick={() => setInspectorCollapsed(true)}
+                  className="p-1 rounded hover:bg-[#181C22] transition-colors text-[#5C636D] hover:text-[#9BA3AD]"
+                  title="Collapse Band Inspector"
+                >
+                  <PanelRightClose size={12} />
+                </button>
+              }
+            />
+          </div>
+          {/* Collapsed content */}
+          <div
+            className="absolute inset-0 flex flex-col items-center py-2"
+            style={{
+              opacity: inspectorCollapsed ? 1 : 0,
+              transition: "opacity 0.35s ease-in-out",
+              pointerEvents: inspectorCollapsed ? "auto" : "none",
+            }}
+          >
+            <button
+              onClick={() => setInspectorCollapsed(false)}
+              className="p-1.5 rounded hover:bg-[#181C22] transition-colors text-[#5C636D] hover:text-[#9BA3AD]"
+              title="Expand Band Inspector"
+            >
+              <PanelRightOpen size={14} />
+            </button>
+            <div className="mt-2 flex-1 flex items-center justify-center" style={{ writingMode: "vertical-rl" }}>
+              <span className="section-label text-[9px] tracking-widest">INSPECT</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

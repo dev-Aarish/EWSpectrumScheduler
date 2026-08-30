@@ -25,6 +25,7 @@ interface EmitterDetailPanelProps {
   dwellCentres: number[];
   waterfall: number[][];
   scanHistory: number[];
+  headerRight?: React.ReactNode;
 }
 
 export default function EmitterDetailPanel({
@@ -34,12 +35,14 @@ export default function EmitterDetailPanel({
   dwellCentres,
   waterfall,
   scanHistory,
+  headerRight,
 }: EmitterDetailPanelProps) {
   if (selectedBand === null || selectedBand === undefined) {
     return (
-      <div className="bg-[#12151A] border-l border-[#22262D] w-72 flex flex-col">
-        <div className="px-3 py-2 border-b border-[#22262D]">
+      <div className="bg-[#12151A] border-l border-[#22262D] flex flex-col h-full">
+        <div className="px-3 py-2 border-b border-[#22262D] flex items-center justify-between">
           <span className="section-label">Band Inspector</span>
+          {headerRight}
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center text-[#5C636D] text-[11px] font-mono">
@@ -73,18 +76,21 @@ export default function EmitterDetailPanel({
     : 0;
 
   return (
-    <div className="bg-[#12151A] border-l border-[#22262D] w-72 flex flex-col">
+    <div className="bg-[#12151A] border-l border-[#22262D] flex flex-col h-full">
       {/* Header */}
       <div className="px-3 py-2 border-b border-[#22262D] flex items-center justify-between">
         <div>
           <span className="section-label">Band Inspector</span>
         </div>
-        <button
-          onClick={() => onBandSelect(null)}
-          className="p-1 hover:bg-[#181C22] rounded transition-colors"
-        >
-          <X size={12} className="text-[#5C636D]" />
-        </button>
+        <div className="flex items-center gap-1">
+          {headerRight}
+          <button
+            onClick={() => onBandSelect(null)}
+            className="p-1 hover:bg-[#181C22] rounded transition-colors"
+          >
+            <X size={12} className="text-[#5C636D]" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
