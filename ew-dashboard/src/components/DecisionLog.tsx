@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Terminal, Filter } from "lucide-react";
 
 interface Decision {
@@ -27,17 +27,19 @@ export default function DecisionLog({
   const [filter, setFilter] = useState<"all" | "hits" | "misses">("all");
   const prevCountRef = useRef(0);
 
-  const visibleDecisions = decisions.filter((d) => {
-    if (currentStep !== undefined && d.time_step > currentStep) return false;
-    if (filter === "hits") return d.actual_detection;
-    if (filter === "misses") return !d.actual_detection;
-    return true;
-  });
+  const visibleDecisions = useMemo(() => {
+    return decisions.filter((d) => {
+      if (currentStep !== undefined && d.time_step > currentStep) return false;
+      if (filter === "hits") return d.actual_detection;
+      if (filter === "misses") return !d.actual_detection;
+      return true;
+    });
+  }, [decisions, currentStep, filter]);
 
   const slicedDecisions = maxVisible ? visibleDecisions.slice(-maxVisible) : visibleDecisions;
 
-  const hits = visibleDecisions.filter((d) => d.actual_detection).length;
-  const misses = visibleDecisions.filter((d) => !d.actual_detection).length;
+  const hits = useMemo(() => visibleDecisions.filter((d) => d.actual_detection).length, [visibleDecisions]);
+  const misses = useMemo(() => visibleDecisions.filter((d) => !d.actual_detection).length, [visibleDecisions]);
 
   useEffect(() => {
     if (scrollRef.current && slicedDecisions.length > prevCountRef.current) {

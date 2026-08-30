@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronDown, ChevronRight, Filter, Layers } from "lucide-react";
 
 interface BandStats {
@@ -60,15 +60,20 @@ export default function Sidebar({
   };
 
   // Sort and filter bands by pulse count for the list
-  const sortedBands = [...bandStats].sort(
-    (a, b) => b.pulse_count - a.pulse_count
+  const sortedBands = useMemo(
+    () => [...bandStats].sort((a, b) => b.pulse_count - a.pulse_count),
+    [bandStats]
   );
-  const activeBands = sortedBands.filter(
-    (b) =>
-      b.pulse_count > 0 &&
-      b.pulse_count >= parsedMinPulses &&
-      b.dwell_centre_mhz >= parsedFreqMin &&
-      b.dwell_centre_mhz <= parsedFreqMax
+  const activeBands = useMemo(
+    () =>
+      sortedBands.filter(
+        (b) =>
+          b.pulse_count > 0 &&
+          b.pulse_count >= parsedMinPulses &&
+          b.dwell_centre_mhz >= parsedFreqMin &&
+          b.dwell_centre_mhz <= parsedFreqMax
+      ),
+    [sortedBands, parsedMinPulses, parsedFreqMin, parsedFreqMax]
   );
 
   // Select all text on focus for number inputs

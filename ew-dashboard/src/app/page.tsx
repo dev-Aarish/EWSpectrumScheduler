@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Play,
   Pause,
@@ -156,6 +156,41 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [isPlaying, configData, playSpeed]);
 
+  // Memoized derived stats (must be before any early return)
+  const activeBandsCount = useMemo(
+    () => configData?.band_stats?.filter((b) => b.pulse_count > 0).length ?? 0,
+    [configData?.band_stats]
+  );
+  const totalHits = useMemo(
+    () => configData?.scheduler_decisions?.filter((d) => d.actual_detection).length ?? 0,
+    [configData?.scheduler_decisions]
+  );
+  const totalDecisions = configData?.scheduler_decisions?.length ?? 0;
+  const hitRate = totalDecisions > 0 ? (totalHits / totalDecisions) * 100 : 0;
+  const avgConfidence = useMemo(
+    () =>
+      totalDecisions > 0
+        ? (configData?.scheduler_decisions?.reduce((s, d) => s + d.confidence, 0) ?? 0) /
+          totalDecisions
+        : 0,
+    [configData?.scheduler_decisions, totalDecisions]
+  );
+
+  const emitterLabels = useMemo(
+    () =>
+      configData
+        ? [...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [configData?.pulse_data.emitter_label]
+  );
+
+  const freqRangeProp = useMemo(
+    (): [number, number] => configData ? [configData.freq_range_mhz[0], configData.freq_range_mhz[1]] : [0, 0],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [configData?.freq_range_mhz]
+  );
+
   if (!configData) {
     return (
       <div className="h-screen bg-[#0B0D0F] flex items-center justify-center">
@@ -176,20 +211,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  const activeBandsCount = configData.band_stats.filter(
-    (b) => b.pulse_count > 0
-  ).length;
-  const totalHits = configData.scheduler_decisions.filter(
-    (d) => d.actual_detection
-  ).length;
-  const totalDecisions = configData.scheduler_decisions.length;
-  const hitRate = totalDecisions > 0 ? (totalHits / totalDecisions) * 100 : 0;
-  const avgConfidence =
-    totalDecisions > 0
-      ? configData.scheduler_decisions.reduce((s, d) => s + d.confidence, 0) /
-        totalDecisions
-      : 0;
 
   return (
     <div className="h-screen flex flex-col bg-[#0B0D0F]">
@@ -231,10 +252,7 @@ export default function Dashboard() {
               selectedBand={selectedBand}
               onBandSelect={setSelectedBand}
               nBands={configData.n_bands}
-              freqRange={[
-                configData.freq_range_mhz[0],
-                configData.freq_range_mhz[1],
-              ]}
+              freqRange={freqRangeProp}
               emitterTypes={configData.emitter_types ?? []}
               headerRight={
                 <button
@@ -437,14 +455,14 @@ export default function Dashboard() {
                     <ScatterPlot
                       pulseData={configData.pulse_data}
                       emitterTypes={configData.emitter_types ?? []}
-                      emitterLabels={[...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)}
+                      emitterLabels={emitterLabels}
                     />
                   </div>
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
                     <AoAPolarPlot
                       pulseData={configData.pulse_data}
                       emitterTypes={configData.emitter_types ?? []}
-                      emitterLabels={[...new Set(configData.pulse_data.emitter_label)].sort((a, b) => a - b)}
+                      emitterLabels={emitterLabels}
                     />
                   </div>
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">

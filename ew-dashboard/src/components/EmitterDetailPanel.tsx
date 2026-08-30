@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { BarChart3, Radio, Zap, Target, X } from "lucide-react";
 import {
   LineChart,
@@ -59,21 +60,25 @@ export default function EmitterDetailPanel({
   if (!band) return null;
 
   // Generate activity timeline for this band
-  const timeline = waterfall[selectedBand]
-    ? waterfall[selectedBand].map((v, i) => ({
-        t: i,
-        active: v,
-        scanned: i < scanHistory.length && scanHistory[i] === selectedBand ? 1 : 0,
-      }))
-    : [];
+  const timeline = useMemo(() => {
+    return waterfall[selectedBand]
+      ? waterfall[selectedBand].map((v, i) => ({
+          t: i,
+          active: v,
+          scanned: i < scanHistory.length && scanHistory[i] === selectedBand ? 1 : 0,
+        }))
+      : [];
+  }, [waterfall, selectedBand, scanHistory]);
 
-  const detectionRate = timeline.length > 0
-    ? (timeline.filter((t) => t.active === 1).length / timeline.length) * 100
-    : 0;
+  const detectionRate = useMemo(
+    () => timeline.length > 0 ? (timeline.filter((t) => t.active === 1).length / timeline.length) * 100 : 0,
+    [timeline]
+  );
 
-  const scanRate = timeline.length > 0
-    ? (timeline.filter((t) => t.scanned === 1).length / timeline.length) * 100
-    : 0;
+  const scanRate = useMemo(
+    () => timeline.length > 0 ? (timeline.filter((t) => t.scanned === 1).length / timeline.length) * 100 : 0,
+    [timeline]
+  );
 
   return (
     <div className="bg-[#12151A] border-l border-[#22262D] flex flex-col h-full">
