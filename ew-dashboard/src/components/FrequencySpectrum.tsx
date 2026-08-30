@@ -42,6 +42,20 @@ export default function FrequencySpectrum({
     amplitude: Math.abs(b.mean_amplitude),
   }));
 
+  // Compute max pulse count for intensity normalization
+  const maxPulses = Math.max(...data.map((d) => d.pulses), 1);
+
+  // Interpolate between base gray and accent based on intensity
+  const getIntensityColor = (pulses: number): string => {
+    if (pulses === 0) return "#1A1D22";
+    const t = Math.min(pulses / maxPulses, 1);
+    // Interpolate from #3A3F46 (idle) to #C4523B (hit red)
+    const r = Math.round(58 + (196 - 58) * t);
+    const g = Math.round(63 + (82 - 63) * t);
+    const b = Math.round(70 + (59 - 70) * t);
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload;
@@ -116,12 +130,11 @@ export default function FrequencySpectrum({
                   fill={
                     selectedBand === entry.band
                       ? "#D98E33"
-                      : entry.pulses === 0
-                      ? "#1A1D22"
                       : hoveredBar === index
-                      ? "#C4523B"
-                      : "#3A3F46"
+                      ? "#D98E33"
+                      : getIntensityColor(entry.pulses)
                   }
+                  fillOpacity={hoveredBar === index ? 0.8 : 1}
                   stroke={
                     selectedBand === entry.band ? "#D98E33" : "transparent"
                   }
