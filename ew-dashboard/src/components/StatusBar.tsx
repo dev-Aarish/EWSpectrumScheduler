@@ -17,7 +17,10 @@ interface StatusBarProps {
   scanProgress: number;
   activeBands: number;
   totalBands: number;
+  errorCount?: number;
 }
+
+type HealthStatus = "nominal" | "warning" | "critical";
 
 export default function StatusBar({
   systemMode,
@@ -25,11 +28,49 @@ export default function StatusBar({
   scanProgress,
   activeBands,
   totalBands,
+  errorCount = 0,
 }: StatusBarProps) {
   const [time, setTime] = useState(new Date());
   const [fps, setFps] = useState(0);
+  const [memoryMB, setMemoryMB] = useState<number | null>(null);
   const frameCount = useRef(0);
   const lastTime = useRef(performance.now());
+
+  useEffect(() => {
+    if (typeof performance !== "undefined" && "memory" in performance) {
+      const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
+      if (mem) {
+        setMemoryMB(Math.round(mem.usedJSHeapSize / 1024 / 1024));
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof performance === "undefined" || !("memory" in performance)) return;
+    const interval = setInterval(() => {
+      const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
+      if (mem) {
+        setMemoryMB(Math.round(mem.usedJSHeapSize / 1024 / 1024));
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const healthStatus: HealthStatus = (() => {
+    if (errorCount > 10) return "critical";
+    if (errorCount > 0) return "warning";
+    if (fps > 0 && fps < 30) return "warning";
+    if (memoryMB !== null && memoryMB > 512) return "warning";
+    return "nominal";
+  })();
+
+  const healthConfig: Record<HealthStatus, { color: string; label: string }> = {
+    nominal: { color: "text-[#5E8C6A]", label: "NOMINAL" },
+    warning: { color: "text-[#D98E33]", label: "WARNING" },
+    critical: { color: "text-[#C44D4D]", label: "CRITICAL" },
+  };
+
+  const health = healthConfig[healthStatus];
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -109,9 +150,15 @@ export default function StatusBar({
       {/* System health indicators */}
       <div className="flex items-center gap-2 px-1">
         <div className="flex items-center gap-1">
-          <Shield size={9} className="text-[#5E8C6A]" />
-          <span className="text-[#5E8C6A] text-[9px]">NOMINAL</span>
+          <Shield size={9} className={health.color} />
+          <span className={`${health.color} text-[9px] uppercase`}>{health.label}</span>
         </div>
+        {memoryMB !== null && (
+          <>
+            <div className="w-px h-3 bg-[#22262D]" />
+            <span className="text-[#5C636D] text-[9px] tabular-nums">{memoryMB}MB</span>
+          </>
+        )}
       </div>
 
       {/* Spacer */}
