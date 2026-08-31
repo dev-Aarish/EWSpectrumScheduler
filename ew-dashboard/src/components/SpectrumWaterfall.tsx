@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface BandStat {
   band_id: number;
@@ -24,6 +25,8 @@ interface SpectrumWaterfallProps {
   scanHistory: number[];
   dwellCentres: number[];
   currentScanStep: number;
+  /** 0 to nTimeBins float — for smooth sweep line interpolation */
+  scanProgress?: number;
   bandStats?: BandStat[];
   onBandClick?: (band: number) => void;
   viewMode?: WaterfallViewMode;
@@ -78,6 +81,7 @@ export default function SpectrumWaterfall({
   scanHistory,
   dwellCentres,
   currentScanStep,
+  scanProgress,
   bandStats,
   onBandClick,
   viewMode = "binary",
@@ -99,6 +103,19 @@ export default function SpectrumWaterfall({
   const lastCanvasSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   const lastHoverTime = useRef(0);
+
+  // Crossfade on config/data change — snapshot old canvas, dissolve it over new content
+  const [crossfadeSnapshot, setCrossfadeSnapshot] = useState<string | null>(null);
+  const prevWaterfallRef = useRef(waterfall);
+  useEffect(() => {
+    if (prevWaterfallRef.current !== waterfall) {
+      prevWaterfallRef.current = waterfall;
+      const canvas = canvasRef.current;
+      if (canvas) {
+        setCrossfadeSnapshot(canvas.toDataURL());
+      }
+    }
+  }, [waterfall]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -147,6 +164,7 @@ export default function SpectrumWaterfall({
       // Fast GPU-accelerated blit from offscreen canvas
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvasW, canvasH);
       ctx.drawImage(offscreenCanvasRef.current, 0, 0);
       ctx.restore();
     } else {
@@ -334,8 +352,10 @@ export default function SpectrumWaterfall({
     }
 
     // --- Draw dynamic overlay (sweep line) — cheap, runs every frame ---
-    if (currentScanStep >= 0 && currentScanStep < nTimeBins) {
-      const x = PADDING.left + currentScanStep * cellWidth;
+    // Use scanProgress for smooth interpolation between time bins
+    const progress = scanProgress ?? currentScanStep;
+    if (progress >= 0 && progress < nTimeBins) {
+      const x = PADDING.left + progress * cellWidth;
 
       // Glow region
       const gradient = ctx.createLinearGradient(x - 30, 0, x + 30, 0);
@@ -363,9 +383,10 @@ export default function SpectrumWaterfall({
       ctx.closePath();
       ctx.fill();
 
-      // Current scan band box
-      if (currentScanStep < scanHistory.length) {
-        const currentBand = scanHistory[currentScanStep];
+      // Current scan band box (uses discrete step for exact band index)
+      const discreteStep = Math.round(progress);
+      if (discreteStep >= 0 && discreteStep < scanHistory.length) {
+        const currentBand = scanHistory[discreteStep];
         if (currentBand >= 0 && currentBand < nBands) {
           const y = PADDING.top + currentBand * cellHeight;
           ctx.strokeStyle = "#D98E33";
@@ -386,6 +407,7 @@ export default function SpectrumWaterfall({
     scanHistory,
     dwellCentres,
     currentScanStep,
+    scanProgress,
     dimensions,
     viewMode,
   ]);
@@ -432,6 +454,26 @@ export default function SpectrumWaterfall({
         onMouseLeave={() => setHoveredCell(null)}
         onClick={handleClick}
       />
+      {/* Crossfade snapshot: old canvas content dissolves over new content */}
+      <AnimatePresence>
+        {crossfadeSnapshot && (
+          <motion.img
+            key={crossfadeSnapshot}
+            src={crossfadeSnapshot}
+            alt=""
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{
+              duration: 0.4,
+              delay: 0.06,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+            onAnimationComplete={() => setCrossfadeSnapshot(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* View mode toggle */}
       {onViewModeChange && (

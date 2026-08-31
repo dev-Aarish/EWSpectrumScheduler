@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronRight, Filter, Layers } from "lucide-react";
 
 interface BandStats {
@@ -130,8 +131,17 @@ export default function Sidebar({
             </div>
           </button>
 
+          <AnimatePresence initial={false}>
           {expandedSections.bands && (
-            <div className="px-2 pb-2">
+            <motion.div
+              key="bands-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="px-2 pb-2">
               {/* All bands option */}
               <button
                 onClick={() => onBandSelect(null)}
@@ -173,8 +183,10 @@ export default function Sidebar({
                   </button>
                 ))}
               </div>
-            </div>
+              </div>
+            </motion.div>
           )}
+          </AnimatePresence>
         </div>
 
         {/* Emitter Types Section */}
@@ -196,23 +208,34 @@ export default function Sidebar({
             </div>
           </button>
 
+          <AnimatePresence initial={false}>
           {expandedSections.emitters && (
-            <div className="px-3 pb-2">
-              <div className="text-[11px] font-mono text-[#9BA3AD] space-y-1">
-                {emitterTypes.map((emitter) => (
-                  <div key={emitter.label} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-sm ${emitter.color}`} />
-                      <span>{emitter.label}</span>
+            <motion.div
+              key="emitters-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="px-3 pb-2">
+                <div className="text-[11px] font-mono text-[#9BA3AD] space-y-1">
+                  {emitterTypes.map((emitter) => (
+                    <div key={emitter.label} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-sm ${emitter.color}`} />
+                        <span>{emitter.label}</span>
+                      </div>
+                      <span className="text-[#5C636D] tabular-nums">
+                        {emitter.count}
+                      </span>
                     </div>
-                    <span className="text-[#5C636D] tabular-nums">
-                      {emitter.count}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
         </div>
 
         {/* Filters Section */}
@@ -229,61 +252,72 @@ export default function Sidebar({
             )}
           </button>
 
+          <AnimatePresence initial={false}>
           {expandedSections.filters && (
-            <div className="px-3 pb-3 space-y-2">
-              <div>
-                <label className="block text-[10px] text-[#5C636D] uppercase tracking-wider mb-1">
-                  Min Pulses
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={minPulses}
-                  onFocus={handleFocus}
-                  onChange={(e) => setMinPulses(e.target.value)}
-                  className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-[#5C636D] uppercase tracking-wider mb-1">
-                  Frequency Range
-                </label>
-                <div className="flex flex-col gap-1">
+            <motion.div
+              key="filters-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="px-3 pb-3 space-y-2">
+                <div>
+                  <label className="block text-[10px] text-[#5C636D] uppercase tracking-wider mb-1">
+                    Min Pulses
+                  </label>
                   <input
                     type="number"
-                    min={freqRange[0]}
-                    max={freqRange[1]}
-                    value={freqMin}
+                    min={0}
+                    value={minPulses}
                     onFocus={handleFocus}
-                    onChange={(e) => setFreqMin(e.target.value)}
-                    className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
-                  />
-                  <input
-                    type="number"
-                    min={freqRange[0]}
-                    max={freqRange[1]}
-                    value={freqMax}
-                    onFocus={handleFocus}
-                    onChange={(e) => setFreqMax(e.target.value)}
+                    onChange={(e) => setMinPulses(e.target.value)}
                     className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
                   />
                 </div>
+                <div>
+                  <label className="block text-[10px] text-[#5C636D] uppercase tracking-wider mb-1">
+                    Frequency Range
+                  </label>
+                  <div className="flex flex-col gap-1">
+                    <input
+                      type="number"
+                      min={freqRange[0]}
+                      max={freqRange[1]}
+                      value={freqMin}
+                      onFocus={handleFocus}
+                      onChange={(e) => setFreqMin(e.target.value)}
+                      className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
+                    />
+                    <input
+                      type="number"
+                      min={freqRange[0]}
+                      max={freqRange[1]}
+                      value={freqMax}
+                      onFocus={handleFocus}
+                      onChange={(e) => setFreqMax(e.target.value)}
+                      className="w-full bg-[#0E1013] border border-[#22262D] text-[#E8EAED] text-[11px] font-mono px-2 py-1 rounded focus:outline-none focus:border-[#D98E33]/50"
+                    />
+                  </div>
+                </div>
+                {/* Reset filters button */}
+                {(parsedMinPulses > 0 || parsedFreqMin !== freqRange[0] || parsedFreqMax !== freqRange[1]) && (
+                  <button
+                    onClick={() => {
+                      setMinPulses("0");
+                      setFreqMin(String(freqRange[0]));
+                      setFreqMax(String(freqRange[1]));
+                    }}
+                    className="w-full text-[10px] text-[#D98E33] hover:text-[#D98E33]/80 transition-colors py-1"
+                  >
+                    Reset Filters
+                  </button>
+                )}
               </div>
-              {/* Reset filters button */}
-              {(parsedMinPulses > 0 || parsedFreqMin !== freqRange[0] || parsedFreqMax !== freqRange[1]) && (
-                <button
-                  onClick={() => {
-                    setMinPulses("0");
-                    setFreqMin(String(freqRange[0]));
-                    setFreqMax(String(freqRange[1]));
-                  }}
-                  className="w-full text-[10px] text-[#D98E33] hover:text-[#D98E33]/80 transition-colors py-1"
-                >
-                  Reset Filters
-                </button>
-              )}
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
         </div>
       </div>
     </aside>

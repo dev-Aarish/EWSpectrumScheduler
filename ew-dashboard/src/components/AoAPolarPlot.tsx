@@ -65,7 +65,7 @@ function AoAPolarPlot({
     return map;
   }, [emitterTypes, emitterLabels]);
 
-  const { points, ampMin, ampMax } = useMemo(() => {
+  const { points } = useMemo(() => {
     const len = pulseData.aoa.length;
     const amps = pulseData.amplitude;
     const aMin = Math.min(...amps);
@@ -74,10 +74,10 @@ function AoAPolarPlot({
 
     const pts = [];
     for (let i = 0; i < len; i++) {
-      const angle = pulseData.aoa[i]; // degrees, 0-360
-      const normAmp = (amps[i] - aMin) / aRange; // 0-1
-      const r = 15 + normAmp * (MAX_RADIUS - 15); // min radius so center isn't crowded
-      const rad = (angle - 90) * DEG_TO_RAD; // -90 so 0° is up (north)
+      const angle = pulseData.aoa[i];
+      const normAmp = (amps[i] - aMin) / aRange;
+      const r = 15 + normAmp * (MAX_RADIUS - 15);
+      const rad = (angle - 90) * DEG_TO_RAD;
       pts.push({
         x: CENTER + r * Math.cos(rad),
         y: CENTER + r * Math.sin(rad),
@@ -91,7 +91,6 @@ function AoAPolarPlot({
     return { points: pts, ampMin: aMin, ampMax: aMax };
   }, [pulseData]);
 
-  // Coverage gaps: bin angles into 12 sectors (30° each), find empty ones
   const coverageGaps = useMemo(() => {
     const sectorSize = 30;
     const sectors = new Array(360 / sectorSize).fill(false);
@@ -105,31 +104,22 @@ function AoAPolarPlot({
       .map((i) => i * sectorSize);
   }, [points]);
 
-  const handleHover = (e: React.MouseEvent) => {
-    const target = e.currentTarget as SVGGElement;
-    const circle = target.querySelector("circle:last-child") as SVGCircleElement;
-    if (circle) {
-      circle.setAttribute("r", "5");
-      circle.setAttribute("fill-opacity", "1");
-    }
-  };
+  // Derive a stable key from the data identity so the wrapper re-mounts on config change
+  const animKey = useMemo(
+    () => `${pulseData.aoa.length}-${pulseData.aoa[0] ?? 0}`,
+    [pulseData]
+  );
 
-  const handleLeave = (e: React.MouseEvent) => {
-    const target = e.currentTarget as SVGGElement;
-    const circle = target.querySelector("circle:last-child") as SVGCircleElement;
-    if (circle) {
-      circle.setAttribute("r", "2");
-      circle.setAttribute("fill-opacity", "0.6");
+  // Batch points into groups for staggered CSS animation
+  // Each batch gets a progressively longer delay
+  const BATCH_SIZE = 80;
+  const batches = useMemo(() => {
+    const result: typeof points[] = [];
+    for (let i = 0; i < points.length; i += BATCH_SIZE) {
+      result.push(points.slice(i, i + BATCH_SIZE));
     }
-  };
-
-  const CustomTooltip = (d: any) => {
-    return (
-      <title>
-        {`AoA: ${d.angle.toFixed(1)}° | Amp: ${d.amplitude.toFixed(1)} dBm | Emitter #${d.label}\nFreq: ${d.frequency.toFixed(1)} MHz | ToA: ${d.toa.toFixed(0)} μs`}
-      </title>
-    );
-  };
+    return result;
+  }, [points]);
 
   return (
     <div className="flex flex-col h-full">
@@ -145,6 +135,22 @@ function AoAPolarPlot({
           className="w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
+          <style>{`
+            @keyframes aoa-dot-in {
+              0% { opacity: 0; transform: scale(0); }
+              100% { opacity: 1; transform: scale(1); }
+            }
+            .aoa-dot {
+              animation: aoa-dot-in 250ms ease-out both;
+              transform-origin: center;
+              transform-box: fill-box;
+            }
+            .aoa-dot:hover circle:last-child {
+              r: 5;
+              fill-opacity: 1;
+            }
+          `}</style>
+
           {/* Concentric rings */}
           {Array.from({ length: RING_COUNT }, (_, i) => {
             const r = ((i + 1) / RING_COUNT) * MAX_RADIUS;
@@ -211,8 +217,6 @@ function AoAPolarPlot({
 
           {/* Coverage gap highlights */}
           {coverageGaps.map((gapAngle) => {
-            const rad = (gapAngle - 90) * DEG_TO_RAD;
-            const midRad = ((gapAngle + 15) - 90) * DEG_TO_RAD;
             const arcPath = describeArc(
               CENTER,
               CENTER,
@@ -231,41 +235,79 @@ function AoAPolarPlot({
             );
           })}
 
-          {/* Pulse points */}
-          {points.map((p, i) => {
-            const color = labelToColor.get(p.label) ?? "#9BA3AD";
-            return (
-              <g
-                key={i}
-                onMouseEnter={handleHover}
-                onMouseLeave={handleLeave}
-                style={{ cursor: "pointer" }}
-              >
-                <circle
-                  cx={CENTER}
-                  cy={CENTER}
-                  r={15}
-                  fill="transparent"
-                />
-                <circle
-                  cx={p.x}
-                  cy={p.y}
-                  r={2}
-                  fill={color}
-                  fillOpacity={0.6}
-                  stroke={color}
-                  strokeWidth={0.5}
-                  strokeOpacity={0.8}
-                >
-                  <CustomTooltip {...p} />
-                </circle>
-              </g>
-            );
-          })}
+          {/* Pulse points — batched CSS stagger animation */}
+          {batches.map((batch, batchIdx) => (
+            <g key={`batch-${animKey}-${batchIdx}`}>
+              {batch.map((p, localIdx) => {
+                const globalIdx = batchIdx * BATCH_SIZE + localIdx;
+                const color = labelToColor.get(p.label) ?? "#9BA3AD";
+                const delay = batchIdx * 60; // ms delay per batch
+                return (
+                  <g
+                    key={globalIdx}
+                    className="aoa-dot"
+                    style={{
+                      animationDelay: `${delay}ms`,
+                    }}
+                  >
+                    {/* Invisible hit area */}
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={15}
+                      fill="transparent"
+                    />
+                    {/* Visible dot */}
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={2}
+                      fill={color}
+                      fillOpacity={0.6}
+                      stroke={color}
+                      strokeWidth={0.5}
+                      strokeOpacity={0.8}
+                      style={{
+                        transition: "r 100ms ease-out, fill-opacity 100ms ease-out",
+                      }}
+                    >
+                      <title>{`AoA: ${p.angle.toFixed(1)} | Amp: ${p.amplitude.toFixed(1)} dBm | Emitter #${p.label}\nFreq: ${p.frequency.toFixed(1)} MHz | ToA: ${p.toa.toFixed(0)} us`}</title>
+                    </circle>
+                  </g>
+                );
+              })}
+            </g>
+          ))}
 
           {/* Receiver marker */}
-          <circle cx={CENTER} cy={CENTER} r={3} fill="#D98E33" fillOpacity={0.8} />
-          <circle cx={CENTER} cy={CENTER} r={5} fill="none" stroke="#D98E33" strokeWidth={0.8} strokeOpacity={0.4} />
+          <circle cx={CENTER} cy={CENTER} r={3} fill="#D98E33" fillOpacity={0.8}>
+            <animate
+              attributeName="r"
+              values="3;4;3"
+              dur="2s"
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="fill-opacity"
+              values="0.8;0.4;0.8"
+              dur="2s"
+              repeatCount="indefinite"
+            />
+          </circle>
+          <circle cx={CENTER} cy={CENTER} r={5} fill="none" stroke="#D98E33" strokeWidth={0.8} strokeOpacity={0.4}>
+            <animate
+              attributeName="r"
+              values="5;7;5"
+              dur="2s"
+              repeatCount="indefinite"
+            />
+            <animate
+              attributeName="stroke-opacity"
+              values="0.4;0.1;0.4"
+              dur="2s"
+              repeatCount="indefinite"
+            />
+          </circle>
         </svg>
       </div>
     </div>

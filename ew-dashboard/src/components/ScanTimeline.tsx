@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 
 interface ScanTimelineProps {
   scanHistory: number[];
   waterfall: number[][];
   dwellCentres: number[];
   currentStep: number;
+  /** 0 to nTimeBins float — for smooth highlight interpolation */
+  scanProgress?: number;
   onStepClick: (step: number) => void;
   nBands: number;
 }
@@ -14,8 +16,9 @@ interface ScanTimelineProps {
 export default function ScanTimeline({
   scanHistory,
   waterfall,
-  dwellCentres,
+  dwellCentres: _dwellCentres,
   currentStep,
+  scanProgress,
   onStepClick,
   nBands,
 }: ScanTimelineProps) {
@@ -76,6 +79,7 @@ export default function ScanTimeline({
       // Fast GPU-accelerated blit from offscreen canvas
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvasW, canvasH);
       ctx.drawImage(offscreenCanvasRef.current, 0, 0);
       ctx.restore();
     } else {
@@ -122,9 +126,11 @@ export default function ScanTimeline({
     }
 
     // --- Dynamic overlay: current step highlight + hover ---
-    if (currentStep >= 0 && currentStep < totalSteps) {
-      const band = scanHistory[currentStep];
-      const x = currentStep * barWidth;
+    // Use scanProgress for smooth interpolation between bars
+    const progress = scanProgress ?? currentStep;
+    if (progress >= 0 && progress < totalSteps) {
+      const x = progress * barWidth;
+      const band = scanHistory[Math.round(progress)] ?? 0;
       const barH = Math.max(4, (band / nBands) * h);
 
       ctx.fillStyle = "#D98E33";
@@ -141,7 +147,7 @@ export default function ScanTimeline({
       ctx.fillRect(x, h - barH, barWidth, barH);
       ctx.globalAlpha = 1;
     }
-  }, [scanHistory, waterfall, nBands, dimensions, currentStep, hoverStep, totalSteps, barWidth]);
+  }, [scanHistory, waterfall, nBands, dimensions, currentStep, scanProgress, hoverStep, totalSteps, barWidth]);
 
   const handleCanvasMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {

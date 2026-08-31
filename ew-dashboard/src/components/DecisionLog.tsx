@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Terminal, Filter } from "lucide-react";
+import { motion } from "framer-motion";
+import { Terminal } from "lucide-react";
 
 interface Decision {
   time_step: number;
@@ -43,7 +44,10 @@ export default function DecisionLog({
 
   useEffect(() => {
     if (scrollRef.current && slicedDecisions.length > prevCountRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     }
     prevCountRef.current = slicedDecisions.length;
   }, [slicedDecisions.length]);
@@ -85,8 +89,11 @@ export default function DecisionLog({
           <div className="text-[#5C636D] text-[11px] p-2">No matching entries</div>
         ) : (
           slicedDecisions.map((decision, idx) => (
-            <div
-              key={idx}
+            <motion.div
+              key={`${decision.time_step}-${decision.band_chosen}-${idx}`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.1, ease: "easeOut" }}
               className={`flex items-start gap-2 py-0.5 px-1 rounded transition-colors hover:bg-[#181C22]/50 ${
                 decision.actual_detection ? "text-[#9BA3AD]" : "text-[#5C636D]"
               }`}
@@ -143,7 +150,7 @@ export default function DecisionLog({
               >
                 {decision.actual_detection ? "HIT" : "MISS"}
               </span>
-            </div>
+            </motion.div>
           ))
         )}
       </div>

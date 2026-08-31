@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
   Pause,
@@ -12,6 +13,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
 } from "lucide-react";
+import { useScanPlayback } from "@/hooks/useScanPlayback";
 import StatusBar from "@/components/StatusBar";
 import Sidebar from "@/components/Sidebar";
 import SpectrumWaterfall, { type WaterfallViewMode } from "@/components/SpectrumWaterfall";
@@ -125,8 +127,6 @@ export default function Dashboard() {
   const [configData, setConfigData] = useState<ConfigData | null>(null);
   const [testStats, setTestStats] = useState<TestStat[]>([]);
   const [selectedBand, setSelectedBand] = useState<number | null>(null);
-  const [scanStep, setScanStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [playSpeed, setPlaySpeed] = useState(100);
   const [bottomTab, setBottomTab] = useState<"log" | "explorer" | "charts">("charts");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -157,26 +157,38 @@ export default function Dashboard() {
       .then((res) => res.json())
       .then((data) => {
         setConfigData(data);
-        setScanStep(0);
-        setIsPlaying(false);
       })
       .catch(console.error);
   }, [currentConfigId]);
 
-  // Auto-play scan animation
+  const nTimeBins = configData?.n_time_bins ?? 100;
+
+  // Scan playback — replaces setInterval-based logic
+  const {
+    currentStep: scanStep,
+    isPlaying,
+    scanProgress,
+    play,
+    pause,
+    reset: resetPlayback,
+    stepForward,
+    stepBackward,
+    setSpeed,
+    setStep: setScanStep,
+  } = useScanPlayback({
+    nTimeBins,
+    speed: playSpeed,
+  });
+
+  // Sync playSpeed changes to the hook
   useEffect(() => {
-    if (!isPlaying || !configData) return;
-    const interval = setInterval(() => {
-      setScanStep((prev) => {
-        if (prev >= configData.n_time_bins - 1) {
-          setIsPlaying(false);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, playSpeed);
-    return () => clearInterval(interval);
-  }, [isPlaying, configData, playSpeed]);
+    setSpeed(playSpeed);
+  }, [playSpeed, setSpeed]);
+
+  // Reset playback when config data loads (nTimeBins changes triggers this inside the hook)
+  const handleReset = useCallback(() => {
+    resetPlayback();
+  }, [resetPlayback]);
 
   // Memoized derived stats (must be before any early return)
   const activeBandsCount = useMemo(
@@ -240,7 +252,7 @@ export default function Dashboard() {
       <StatusBar
         systemMode={systemMode}
         currentConfig={currentConfigId}
-        scanProgress={(scanStep / configData.n_time_bins) * 100}
+        scanProgress={(scanProgress / nTimeBins) * 100}
         activeBands={activeBandsCount}
         totalBands={configData.n_bands}
         onModeChange={setSystemMode}
@@ -332,27 +344,27 @@ export default function Dashboard() {
               <div className="w-px h-4 bg-[#22262D]" />
 
               <button
-                onClick={() => setIsPlaying(!isPlaying)}
+                onClick={() => isPlaying ? pause() : play()}
                 className="p-1 bg-[#D98E33]/10 border border-[#D98E33]/30 text-[#D98E33] rounded hover:bg-[#D98E33]/20 transition-colors"
                 title={isPlaying ? "Pause" : "Play"}
               >
                 {isPlaying ? <Pause size={12} /> : <Play size={12} />}
               </button>
               <button
-                onClick={() => { setScanStep(0); setIsPlaying(false); }}
+                onClick={handleReset}
                 className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
                 title="Reset"
               >
                 <RotateCcw size={12} />
               </button>
               <button
-                onClick={() => setScanStep((p) => Math.max(0, p - 1))}
+                onClick={stepBackward}
                 className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
               >
                 <ChevronLeft size={12} />
               </button>
               <button
-                onClick={() => setScanStep((p) => Math.min(configData.n_time_bins - 1, p + 1))}
+                onClick={stepForward}
                 className="p-1 bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
               >
                 <ChevronRight size={12} />
@@ -410,6 +422,7 @@ export default function Dashboard() {
                   scanHistory={configData.scan_history}
                   dwellCentres={configData.dwell_centres_mhz}
                   currentScanStep={scanStep}
+                  scanProgress={scanProgress}
                   bandStats={configData.band_stats}
                   onBandClick={setSelectedBand}
                   viewMode={waterfallViewMode}
@@ -421,6 +434,7 @@ export default function Dashboard() {
                 waterfall={configData.waterfall}
                 dwellCentres={configData.dwell_centres_mhz}
                 currentStep={scanStep}
+                scanProgress={scanProgress}
                 onStepClick={setScanStep}
                 nBands={configData.n_bands}
               />
@@ -464,12 +478,18 @@ export default function Dashboard() {
                 </div>
               )}
               {bottomTab === "charts" && (
-                <div className="grid grid-cols-2 gap-3 p-3">
+                <motion.div
+                  key={`charts-${currentConfigId}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="grid grid-cols-2 gap-3 p-3"
+                >
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
-                    <FrequencySpectrum
-                      bandStats={configData.band_stats}
-                      selectedBand={selectedBand}
-                      onBandSelect={setSelectedBand}
+                    <ScatterPlot
+                      pulseData={configData.pulse_data}
+                      emitterTypes={configData.emitter_types ?? []}
+                      emitterLabels={emitterLabels}
                     />
                   </div>
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
@@ -478,11 +498,11 @@ export default function Dashboard() {
                       selectedBand={selectedBand}
                     />
                   </div>
-                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
-                    <ScatterPlot
-                      pulseData={configData.pulse_data}
-                      emitterTypes={configData.emitter_types ?? []}
-                      emitterLabels={emitterLabels}
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
+                    <FrequencySpectrum
+                      bandStats={configData.band_stats}
+                      selectedBand={selectedBand}
+                      onBandSelect={setSelectedBand}
                     />
                   </div>
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
@@ -500,7 +520,6 @@ export default function Dashboard() {
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
                     <PRFHistogram
                       prfData={configData.prf_data}
-                      selectedBand={selectedBand}
                     />
                   </div>
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
@@ -537,7 +556,7 @@ export default function Dashboard() {
                       freqRange={configData.freq_range_mhz}
                     />
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
           </div>
@@ -565,23 +584,34 @@ export default function Dashboard() {
               willChange: "opacity, transform",
             }}
           >
-            <EmitterDetailPanel
-              bandStats={configData.band_stats}
-              selectedBand={selectedBand}
-              onBandSelect={setSelectedBand}
-              dwellCentres={configData.dwell_centres_mhz}
-              waterfall={configData.waterfall}
-              scanHistory={configData.scan_history}
-              headerRight={
-                <button
-                  onClick={() => setInspectorCollapsed(true)}
-                  className="p-1 rounded hover:bg-[#181C22] transition-colors text-[#5C636D] hover:text-[#9BA3AD]"
-                  title="Collapse Band Inspector"
-                >
-                  <PanelRightClose size={12} />
-                </button>
-              }
-            />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedBand ?? "empty"}
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 8 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="flex-1 overflow-hidden"
+              >
+                <EmitterDetailPanel
+                  bandStats={configData.band_stats}
+                  selectedBand={selectedBand}
+                  onBandSelect={setSelectedBand}
+                  dwellCentres={configData.dwell_centres_mhz}
+                  waterfall={configData.waterfall}
+                  scanHistory={configData.scan_history}
+                  headerRight={
+                    <button
+                      onClick={() => setInspectorCollapsed(true)}
+                      className="p-1 rounded hover:bg-[#181C22] transition-colors text-[#5C636D] hover:text-[#9BA3AD]"
+                      title="Collapse Band Inspector"
+                    >
+                      <PanelRightClose size={12} />
+                    </button>
+                  }
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
           {/* Collapsed content — fades in when collapsed */}
           <div

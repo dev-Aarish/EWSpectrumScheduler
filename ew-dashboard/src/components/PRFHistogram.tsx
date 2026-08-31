@@ -8,7 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
+  Cell,
 } from "recharts";
 import { useMemo, memo } from "react";
 
@@ -33,13 +33,17 @@ interface PRFData {
 
 interface PRFHistogramProps {
   prfData: PRFData;
-  selectedBand: number | null;
 }
 
-function PRFHistogram({ prfData, selectedBand }: PRFHistogramProps) {
+function PRFHistogram({ prfData }: PRFHistogramProps) {
+  // Derive a stable key from the data identity so the wrapper re-mounts on config change
+  const animKey = useMemo(
+    () => prfData.overall.length + "-" + prfData.per_emitter.length,
+    [prfData]
+  );
+
   const chartData = useMemo(() => {
     if (!prfData.overall.length) return [];
-    // Merge overall + per-emitter data into a single array for stacked/grouped bars
     return prfData.overall.map((bin, i) => {
       const row: Record<string, string | number> = {
         range: bin.range,
@@ -68,6 +72,15 @@ function PRFHistogram({ prfData, selectedBand }: PRFHistogramProps) {
     return maxBin.min + maxBin.binSize / 2;
   }, [prfData.overall]);
 
+  const peakIndex = useMemo(() => {
+    if (!prfData.overall.length) return -1;
+    let maxIdx = 0;
+    for (let i = 1; i < prfData.overall.length; i++) {
+      if (prfData.overall[i].count > prfData.overall[maxIdx].count) maxIdx = i;
+    }
+    return maxIdx;
+  }, [prfData.overall]);
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0].payload;
@@ -93,6 +106,22 @@ function PRFHistogram({ prfData, selectedBand }: PRFHistogramProps) {
 
   return (
     <div className="flex flex-col h-full">
+      <style>{`
+        @keyframes prf-bar-grow {
+          0% { transform: scaleY(0); }
+          100% { transform: scaleY(1); }
+        }
+        .prf-bar-rect {
+          animation: prf-bar-grow 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+          transform-origin: bottom;
+          transform-box: fill-box;
+        }
+        .prf-bar-peak {
+          animation: prf-bar-grow 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+          transform-origin: bottom;
+          transform-box: fill-box;
+        }
+      `}</style>
       <div className="px-3 py-2 border-b border-[#22262D] flex items-center justify-between">
         <span className="section-label">PRF Histogram</span>
         <div className="flex items-center gap-2">
@@ -112,50 +141,66 @@ function PRFHistogram({ prfData, selectedBand }: PRFHistogramProps) {
             No PRF data available
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#22262D" vertical={false} />
-              <XAxis
-                dataKey="range"
-                tick={{ fill: "#5C636D", fontSize: 9, fontFamily: "IBM Plex Mono" }}
-                stroke="#22262D"
-                interval={Math.floor(chartData.length / 8)}
-                label={{
-                  value: "Hz",
-                  position: "insideBottomRight",
-                  offset: -5,
-                  style: { fill: "#5C636D", fontSize: 9, fontFamily: "IBM Plex Mono" },
-                }}
-              />
-              <YAxis
-                tick={{ fill: "#5C636D", fontSize: 9, fontFamily: "IBM Plex Mono" }}
-                stroke="#22262D"
-                width={35}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: "#D98E3310" }} />
-              <Bar
-                dataKey="Overall"
-                fill="#D98E33"
-                fillOpacity={0.5}
-                stroke="#D98E33"
-                strokeWidth={1}
-                radius={[1, 1, 0, 0]}
-                isAnimationActive={false}
-              />
-              {prfData.per_emitter.map((emitter) => (
+          <div key={animKey} className="h-full [&_.recharts-bar-rectangle]:prf-bar-rect">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#22262D" vertical={false} />
+                <XAxis
+                  dataKey="range"
+                  tick={{ fill: "#5C636D", fontSize: 9, fontFamily: "IBM Plex Mono" }}
+                  stroke="#22262D"
+                  interval={Math.floor(chartData.length / 8)}
+                  label={{
+                    value: "Hz",
+                    position: "insideBottomRight",
+                    offset: -5,
+                    style: { fill: "#5C636D", fontSize: 9, fontFamily: "IBM Plex Mono" },
+                  }}
+                />
+                <YAxis
+                  tick={{ fill: "#5C636D", fontSize: 9, fontFamily: "IBM Plex Mono" }}
+                  stroke="#22262D"
+                  width={35}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "#D98E3310" }} />
                 <Bar
-                  key={emitter.label}
-                  dataKey={emitter.label}
-                  fill={emitter.color}
-                  fillOpacity={0.7}
-                  stroke={emitter.color}
-                  strokeWidth={0.5}
+                  dataKey="Overall"
+                  fill="#D98E33"
+                  fillOpacity={0.5}
+                  stroke="#D98E33"
+                  strokeWidth={1}
                   radius={[1, 1, 0, 0]}
                   isAnimationActive={false}
-                />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
+                >
+                  {chartData.map((_, index) => (
+                    <Cell
+                      key={index}
+                      className={index === peakIndex ? "prf-bar-peak" : "prf-bar-rect"}
+                      fill={index === peakIndex ? "#D98E33" : "#D98E33"}
+                      fillOpacity={index === peakIndex ? 0.9 : 0.4}
+                      stroke={index === peakIndex ? "#D98E33" : "#D98E33"}
+                      strokeWidth={index === peakIndex ? 1.5 : 0.5}
+                      style={{
+                        animationDelay: `${index * 8}ms`,
+                      }}
+                    />
+                  ))}
+                </Bar>
+                {prfData.per_emitter.map((emitter) => (
+                  <Bar
+                    key={emitter.label}
+                    dataKey={emitter.label}
+                    fill={emitter.color}
+                    fillOpacity={0.7}
+                    stroke={emitter.color}
+                    strokeWidth={0.5}
+                    radius={[1, 1, 0, 0]}
+                    isAnimationActive={false}
+                  />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </div>
       {emitterLegend.length > 0 && (

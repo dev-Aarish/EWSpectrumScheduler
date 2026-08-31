@@ -169,26 +169,6 @@ body {
   color: var(--text-tertiary);
 }
 
-/* Scanner line animation */
-@keyframes scanLine {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(100%); }
-}
-
-.scan-line {
-  animation: scanLine 2s linear infinite;
-}
-
-/* Pulse indicator */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.pulse-indicator {
-  animation: pulse 2s ease-in-out infinite;
-}
-
 /* Hide Next.js dev tools indicator */
 nextjs-portal {
   display: none !important;

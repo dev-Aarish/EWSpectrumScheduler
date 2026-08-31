@@ -171,6 +171,11 @@ function CumulativeDetectionCurve({
     [totals, maxPossible]
   );
 
+  // Progressive reveal — only show data up to current scanStep
+  const visibleData = useMemo(() => {
+    return chartData.filter((d) => d.step <= scanStep + 1);
+  }, [chartData, scanStep]);
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
@@ -225,7 +230,7 @@ function CumulativeDetectionCurve({
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+            <LineChart data={visibleData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#22262D" vertical={false} />
               <XAxis
                 dataKey="step"

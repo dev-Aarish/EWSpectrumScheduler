@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import {
   Radio,
   Activity,
@@ -74,6 +75,10 @@ export default function StatusBar({
 
   const health = healthConfig[healthStatus];
 
+  // Animated counters for smooth transitions
+  const animatedProgress = useAnimatedNumber(scanProgress, 150);
+  const animatedActiveBands = useAnimatedNumber(activeBands, 150);
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -81,7 +86,10 @@ export default function StatusBar({
 
   useEffect(() => {
     let rafId: number;
+    let running = true;
+
     const tick = (now: number) => {
+      if (!running) return;
       frameCount.current++;
       if (now - lastTime.current >= 1000) {
         setFps(frameCount.current);
@@ -90,8 +98,27 @@ export default function StatusBar({
       }
       rafId = requestAnimationFrame(tick);
     };
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        running = false;
+        cancelAnimationFrame(rafId);
+      } else {
+        running = true;
+        lastTime.current = performance.now();
+        frameCount.current = 0;
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      running = false;
+      cancelAnimationFrame(rafId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   const modeConfig = {
@@ -143,7 +170,7 @@ export default function StatusBar({
           />
         </div>
         <span className="text-[#D98E33] tabular-nums text-[9px] w-8">
-          {scanProgress.toFixed(0)}%
+          {animatedProgress.toFixed(0)}%
         </span>
       </div>
 
@@ -152,7 +179,7 @@ export default function StatusBar({
       {/* Active bands */}
       <div className="flex items-center gap-1.5 text-[#9BA3AD] px-1">
         <Wifi size={10} className="text-[#5C636D]" />
-        <span className="tabular-nums text-[#E8EAED]">{activeBands}</span>
+        <span className="tabular-nums text-[#E8EAED]">{Math.round(animatedActiveBands)}</span>
         <span className="text-[#3A3F46]">/</span>
         <span className="tabular-nums">{totalBands}</span>
         <span className="text-[#5C636D]">bands</span>
