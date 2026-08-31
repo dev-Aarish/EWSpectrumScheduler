@@ -35,9 +35,9 @@ function tailwindToHex(tw: string): string {
 }
 
 const DEG_TO_RAD = Math.PI / 180;
-const MAX_RADIUS = 95;
-const RING_COUNT = 4;
-const LABEL_OFFSET = 18;
+const MAX_RADIUS = 160;
+const RING_COUNT = 5;
+const LABEL_OFFSET = 26;
 const SVG_SIZE = (MAX_RADIUS + LABEL_OFFSET) * 2 + 16;
 const CENTER = SVG_SIZE / 2;
 
@@ -142,7 +142,7 @@ function AoAPolarPlot({
       <div className="flex-1 p-2 flex items-center justify-center min-h-0">
         <svg
           viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-          style={{ width: SVG_SIZE, height: SVG_SIZE, maxWidth: "100%", maxHeight: "100%" }}
+          className="w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
           {/* Concentric rings */}
@@ -161,9 +161,9 @@ function AoAPolarPlot({
             );
           })}
 
-          {/* Radial lines every 45° */}
-          {Array.from({ length: 8 }, (_, i) => {
-            const angle = i * 45 * DEG_TO_RAD;
+          {/* Radial lines every 30° */}
+          {Array.from({ length: 12 }, (_, i) => {
+            const angle = i * 30 * DEG_TO_RAD;
             return (
               <line
                 key={`rad-${i}`}
@@ -177,12 +177,20 @@ function AoAPolarPlot({
             );
           })}
 
-          {/* Cardinal labels */}
+          {/* Degree labels every 30° */}
           {[
             { label: "0°", angle: -90 },
+            { label: "30°", angle: -60 },
+            { label: "60°", angle: -30 },
             { label: "90°", angle: 0 },
+            { label: "120°", angle: 30 },
+            { label: "150°", angle: 60 },
             { label: "180°", angle: 90 },
+            { label: "210°", angle: 120 },
+            { label: "240°", angle: 150 },
             { label: "270°", angle: 180 },
+            { label: "300°", angle: 210 },
+            { label: "330°", angle: 240 },
           ].map(({ label, angle }) => {
             const rad = angle * DEG_TO_RAD;
             return (

@@ -481,13 +481,7 @@ export default function Dashboard() {
                       emitterLabels={emitterLabels}
                     />
                   </div>
-                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden">
-                    <AoAPolarPlot
-                      pulseData={configData.pulse_data}
-                      emitterTypes={configData.emitter_types ?? []}
-                      emitterLabels={emitterLabels}
-                    />
-                  </div>
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden" />
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
                     <PRFHistogram
                       prfData={configData.prf_data}
@@ -505,9 +499,16 @@ export default function Dashboard() {
                       scanStep={scanStep}
                     />
                   </div>
-                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg aspect-square flex flex-col overflow-hidden">
                     <EmitterFeatureSpace
                       featureSpace={configData.feature_space}
+                      emitterTypes={configData.emitter_types ?? []}
+                      emitterLabels={emitterLabels}
+                    />
+                  </div>
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg aspect-square flex flex-col overflow-hidden">
+                    <AoAPolarPlot
+                      pulseData={configData.pulse_data}
                       emitterTypes={configData.emitter_types ?? []}
                       emitterLabels={emitterLabels}
                     />
