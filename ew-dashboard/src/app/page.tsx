@@ -26,6 +26,7 @@ import PRFHistogram from "@/components/PRFHistogram";
 import AoAPolarPlot from "@/components/AoAPolarPlot";
 import CumulativeDetectionCurve from "@/components/CumulativeDetectionCurve";
 import EmitterFeatureSpace from "@/components/EmitterFeatureSpace";
+import BandEmitterHeatmap from "@/components/BandEmitterHeatmap";
 
 interface ConfigData {
   config_id: string;
@@ -511,6 +512,15 @@ export default function Dashboard() {
                       pulseData={configData.pulse_data}
                       emitterTypes={configData.emitter_types ?? []}
                       emitterLabels={emitterLabels}
+                    />
+                  </div>
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
+                    <BandEmitterHeatmap
+                      pulseData={configData.pulse_data}
+                      emitterTypes={configData.emitter_types ?? []}
+                      emitterLabels={emitterLabels}
+                      nBands={configData.n_bands}
+                      freqRange={configData.freq_range_mhz}
                     />
                   </div>
                 </div>
