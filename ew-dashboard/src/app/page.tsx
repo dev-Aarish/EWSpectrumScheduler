@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -125,6 +125,7 @@ export default function Dashboard() {
   const [configs, setConfigs] = useState<string[]>([]);
   const [currentConfigId, setCurrentConfigId] = useState<string>("config_0");
   const [configData, setConfigData] = useState<ConfigData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [testStats, setTestStats] = useState<TestStat[]>([]);
   const [selectedBand, setSelectedBand] = useState<number | null>(null);
   const [playSpeed, setPlaySpeed] = useState(100);
@@ -133,6 +134,35 @@ export default function Dashboard() {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [waterfallViewMode, setWaterfallViewMode] = useState<WaterfallViewMode>("binary");
   const [systemMode, setSystemMode] = useState<"live" | "replay" | "training">("replay");
+
+  // Boot sequence — gauge fills over 0.5s, then site opens
+  const [gaugeProgress, setGaugeProgress] = useState(0);
+  const [isBooting, setIsBooting] = useState(true);
+  const bootStartRef = useRef(0);
+  const dataReadyRef = useRef(false);
+
+  // Animate gauge from 0 to 100% over 0.5s
+  useEffect(() => {
+    bootStartRef.current = performance.now();
+    let rafId: number;
+    const animate = (now: number) => {
+      const elapsed = now - bootStartRef.current;
+      const progress = Math.min(elapsed / 500, 1);
+      // Ease-out cubic for smooth deceleration
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setGaugeProgress(eased * 100);
+      if (progress < 1) {
+        rafId = requestAnimationFrame(animate);
+      } else {
+        // Gauge full — if data is ready, open the site
+        if (dataReadyRef.current) {
+          setIsBooting(false);
+        }
+      }
+    };
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   // Load config list
   useEffect(() => {
@@ -150,16 +180,30 @@ export default function Dashboard() {
       .catch(console.error);
   }, []);
 
-  // Load config data
+  // Load config data — reset on config change
   useEffect(() => {
     if (!currentConfigId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConfigData(null);
+    setLoadError(null);
+    dataReadyRef.current = false;
     fetch(`/data/${currentConfigId}.json`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        return res.json();
+      })
       .then((data) => {
         setConfigData(data);
+        dataReadyRef.current = true;
+        if (gaugeProgress >= 100) {
+          setIsBooting(false);
+        }
       })
-      .catch(console.error);
-  }, [currentConfigId]);
+      .catch((err) => {
+        console.error("Failed to load config:", err);
+        setLoadError(err.message);
+      });
+  }, [currentConfigId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nTimeBins = configData?.n_time_bins ?? 100;
 
@@ -225,29 +269,89 @@ export default function Dashboard() {
     [configData?.freq_range_mhz]
   );
 
-  if (!configData) {
-    return (
-      <div className="h-screen bg-[#0B0D0F] flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-[#5C636D] font-mono text-[13px]">
-            Loading scan data...
-          </div>
-          <div className="mt-3 w-48 h-1 bg-[#22262D] rounded overflow-hidden">
-            <div
-              className="h-full bg-[#D98E33] transition-all duration-300"
-              style={{ width: "60%" }}
-            />
-          </div>
-          <div className="mt-2 text-[10px] font-mono text-[#5C636D]">
-            Initializing EW console...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-screen flex flex-col bg-[#0B0D0F]">
+      <AnimatePresence mode="wait">
+        {isBooting ? (
+          <motion.div
+            key="boot"
+            className="h-screen bg-[#0B0D0F] flex items-center justify-center"
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <div className="text-center w-[280px]">
+              {/* System label */}
+              <div className="text-[10px] font-mono text-[#9BA3AD] tracking-[0.2em] mb-4">
+                EW SPECTRUM SCHEDULER
+              </div>
+
+              {/* Gauge bar */}
+              <div className="relative w-full h-[3px] bg-[#1A1D22] rounded-full overflow-hidden">
+                <motion.div
+                  className="absolute inset-y-0 left-0 bg-[#D98E33]"
+                  style={{ width: `${gaugeProgress}%` }}
+                  transition={{ duration: 0 }}
+                />
+                {/* Glow at the leading edge */}
+                <div
+                  className="absolute inset-y-0 w-8 bg-gradient-to-r from-transparent to-[#D98E33]/40"
+                  style={{ left: `calc(${gaugeProgress}% - 16px)` }}
+                />
+              </div>
+
+              {/* Status text */}
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <div className="text-[11px] font-mono text-[#5C636D]">
+                  {loadError ? (
+                    <span className="text-[#C4523B]">LOAD FAILED</span>
+                  ) : gaugeProgress < 30 ? (
+                    "INITIALIZING"
+                  ) : gaugeProgress < 70 ? (
+                    "LOADING CONFIG"
+                  ) : gaugeProgress < 100 ? (
+                    "CALIBRATING"
+                  ) : (
+                    <span className="text-[#D98E33]">READY</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-mono text-[#3A3F46] tabular-nums">
+                  {Math.round(gaugeProgress)}%
+                </span>
+              </div>
+
+              {loadError && (
+                <button
+                  onClick={() => {
+                    setLoadError(null);
+                    setConfigData(null);
+                    dataReadyRef.current = false;
+                    bootStartRef.current = performance.now();
+                    setIsBooting(true);
+                    setGaugeProgress(0);
+                    fetch(`/data/${currentConfigId}.json`)
+                      .then((r) => r.json())
+                      .then((data) => {
+                        setConfigData(data);
+                        dataReadyRef.current = true;
+                      })
+                      .catch((e) => setLoadError(e.message));
+                  }}
+                  className="mt-4 px-3 py-1 text-[10px] font-mono bg-[#22262D] text-[#9BA3AD] rounded hover:bg-[#343A42] transition-colors"
+                >
+                  RETRY
+                </button>
+              )}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            className="h-screen flex flex-col"
+          >
+      {configData && (<>
       {/* Top status bar */}
       <StatusBar
         systemMode={systemMode}
@@ -635,6 +739,10 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      </>)}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
