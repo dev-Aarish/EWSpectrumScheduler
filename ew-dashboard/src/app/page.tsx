@@ -25,6 +25,7 @@ import ScatterPlot from "@/components/ScatterPlot";
 import PRFHistogram from "@/components/PRFHistogram";
 import AoAPolarPlot from "@/components/AoAPolarPlot";
 import CumulativeDetectionCurve from "@/components/CumulativeDetectionCurve";
+import EmitterFeatureSpace from "@/components/EmitterFeatureSpace";
 
 interface ConfigData {
   config_id: string;
@@ -60,6 +61,7 @@ interface ConfigData {
     aoa: number[];
     amplitude: number[];
     toa: number[];
+    pulse_width: number[];
     emitter_label: number[];
   };
   prf_data: {
@@ -70,6 +72,19 @@ interface ConfigData {
       data: { range: string; count: number; min: number; binSize: number }[];
     }[];
     toi_range: number[];
+  };
+  feature_space: {
+    coordinates: number[][];
+    labels: number[];
+    clusters: Record<
+      number,
+      {
+        centroid: number[];
+        covariance: number[][];
+        count: number;
+      }
+    >;
+    separability: number;
   };
   scan_history: number[];
   n_time_bins: number;
@@ -488,6 +503,13 @@ export default function Dashboard() {
                       nBands={configData.n_bands}
                       nTimeBins={configData.n_time_bins}
                       scanStep={scanStep}
+                    />
+                  </div>
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
+                    <EmitterFeatureSpace
+                      featureSpace={configData.feature_space}
+                      emitterTypes={configData.emitter_types ?? []}
+                      emitterLabels={emitterLabels}
                     />
                   </div>
                 </div>

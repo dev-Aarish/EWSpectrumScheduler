@@ -10,6 +10,9 @@ import json
 import os
 import argparse
 from pathlib import Path
+from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 # Output directory
 OUTPUT_DIR = Path("public/data")
@@ -179,6 +182,79 @@ def compute_prf_data(toa: np.ndarray, labels: np.ndarray, n_bands: int, band_ind
     }
 
 
+def compute_feature_space(data: np.ndarray, labels: np.ndarray) -> dict:
+    """Compute t-SNE 2D projection of pulse features with cluster statistics.
+    
+    Features: ToA, Frequency, PulseWidth, AoA, Amplitude
+    Returns 2D coordinates, centroids, and covariance matrices for variance ellipses.
+    """
+    features = data[:, :5]  # ToA, Frequency, PulseWidth, AoA, Amplitude
+    unique_labels = sorted(set(labels.astype(int)))
+
+    # Standardize features before t-SNE
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features)
+
+    # Subsample if too many points (t-SNE is O(n^2))
+    MAX_TSNE_POINTS = 1500
+    n_total = len(features_scaled)
+    if n_total > MAX_TSNE_POINTS:
+        rng = np.random.default_rng(42)
+        idx = rng.choice(n_total, MAX_TSNE_POINTS, replace=False)
+        features_sub = features_scaled[idx]
+        labels_sub = labels[idx].astype(int)
+    else:
+        features_sub = features_scaled
+        labels_sub = labels.astype(int)
+
+    # Run t-SNE, fall back to PCA for very small datasets
+    n_samples = len(features_sub)
+    if n_samples < 6:
+        pca = PCA(n_components=2, random_state=42)
+        coords_2d = pca.fit_transform(features_sub)
+    else:
+        perplexity = min(30, max(5, n_samples - 1))
+        tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42, max_iter=1000)
+        coords_2d = tsne.fit_transform(features_sub)
+
+    # Compute per-cluster centroids and covariance matrices for variance ellipses
+    clusters = {}
+    for lbl in unique_labels:
+        mask = labels_sub == lbl
+        if mask.sum() < 2:
+            continue
+        pts = coords_2d[mask]
+        centroid = pts.mean(axis=0)
+        cov = np.cov(pts.T)
+        clusters[int(lbl)] = {
+            "centroid": centroid.tolist(),
+            "covariance": cov.tolist(),
+            "count": int(mask.sum()),
+        }
+
+    # Compute separability metric (ratio of between-class to within-class variance)
+    all_coords = coords_2d
+    global_mean = all_coords.mean(axis=0)
+    between_var = 0.0
+    within_var = 0.0
+    for lbl in unique_labels:
+        mask = labels_sub == lbl
+        if mask.sum() < 2:
+            continue
+        pts = all_coords[mask]
+        cls_mean = pts.mean(axis=0)
+        between_var += mask.sum() * np.sum((cls_mean - global_mean) ** 2)
+        within_var += np.sum((pts - cls_mean) ** 2)
+    separability = float(between_var / max(within_var, 1e-10))
+
+    return {
+        "coordinates": np.round(coords_2d, 4).tolist(),
+        "labels": labels_sub.tolist(),
+        "clusters": clusters,
+        "separability": round(separability, 4),
+    }
+
+
 def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
     """Extract data from a single H5 config file."""
     with h5py.File(h5_path, 'r') as f:
@@ -333,11 +409,15 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
             "aoa": np.round(data[scatter_indices, 3], 2).tolist(),
             "amplitude": np.round(data[scatter_indices, 4], 2).tolist(),
             "toa": np.round(data[scatter_indices, 0], 2).tolist(),
+            "pulse_width": np.round(data[scatter_indices, 2], 2).tolist(),
             "emitter_label": labels[scatter_indices].astype(int).tolist(),
         }
 
         # Compute PRF (Pulse Repetition Frequency) data
         prf_data = compute_prf_data(toa, labels, n_bands, band_indices)
+
+        # Compute t-SNE feature space projection
+        feature_space = compute_feature_space(data, labels)
 
         return {
             "config_id": Path(h5_path).stem,
@@ -355,6 +435,7 @@ def extract_config_data(h5_path: str, max_time_bins: int = 200) -> dict:
             "band_stats": band_stats,
             "pulse_data": pulse_data,
             "prf_data": prf_data,
+            "feature_space": feature_space,
             "scheduler_decisions": scheduler_decisions,
             "scan_history": scan_history,
             "n_time_bins": n_time_bins
@@ -382,6 +463,16 @@ def extract_all_configs(split: str = "val_scan", max_configs: int = 0, max_time_
 
 def generate_dataset_stats(configs: list) -> dict:
     """Generate aggregate statistics from configs."""
+    if not configs:
+        return {
+            "n_configs": 0,
+            "total_pulses": 0,
+            "total_emitters": 0,
+            "mean_pulses_per_config": 0,
+            "mean_emitters_per_config": 0,
+            "freq_range_mhz": [0, 0],
+            "n_bands": 0,
+        }
     total_pulses = sum(c["n_pulses"] for c in configs)
     total_emitters = sum(c["n_emitters"] for c in configs)
     
