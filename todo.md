@@ -16,7 +16,7 @@
 ## Status Bar
 
 - [x] **System health always "NOMINAL"** — `StatusBar.tsx:94-96` is hardcoded. Either wire to real metrics (render time, memory, error rate) or remove the fake indicator
-- [ ] **System mode hardcoded to "replay"** — `page.tsx:159` always passes `systemMode="replay"`. Add logic to detect or toggle between live/replay/training
+- [x] **System mode hardcoded to "replay"** — `page.tsx:159` always passes `systemMode="replay"`. Add logic to detect or toggle between live/replay/training
 - [x] **FPS always "60 FPS"** — `StatusBar.tsx:106` is decorative. Replace with a real `requestAnimationFrame` FPS counter or remove it
 
 ## Scheduler / Decision Data
@@ -137,4 +137,4 @@
 13. **Emitter t-SNE/UMAP** (feature space analysis) - DONE
 14. **Scan Strategy Comparison** (baseline benchmarking)
 15. **Training Curves** (after ML pipeline exists)
-16. **Interception Ratio Over Time** (after ML pipeline exists)
+16. **Interception Ratio Over Time** (after ML pipeline exists) - DONE

@@ -132,6 +132,7 @@ export default function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [waterfallViewMode, setWaterfallViewMode] = useState<WaterfallViewMode>("binary");
+  const [systemMode, setSystemMode] = useState<"live" | "replay" | "training">("replay");
 
   // Load config list
   useEffect(() => {
@@ -237,11 +238,12 @@ export default function Dashboard() {
     <div className="h-screen flex flex-col bg-[#0B0D0F]">
       {/* Top status bar */}
       <StatusBar
-        systemMode="replay"
+        systemMode={systemMode}
         currentConfig={currentConfigId}
         scanProgress={(scanStep / configData.n_time_bins) * 100}
         activeBands={activeBandsCount}
         totalBands={configData.n_bands}
+        onModeChange={setSystemMode}
       />
 
       {/* Main content area */}

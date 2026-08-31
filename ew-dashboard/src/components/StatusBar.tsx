@@ -18,6 +18,7 @@ interface StatusBarProps {
   activeBands: number;
   totalBands: number;
   errorCount?: number;
+  onModeChange?: (mode: "live" | "replay" | "training") => void;
 }
 
 type HealthStatus = "nominal" | "warning" | "critical";
@@ -29,6 +30,7 @@ export default function StatusBar({
   activeBands,
   totalBands,
   errorCount = 0,
+  onModeChange,
 }: StatusBarProps) {
   const [time, setTime] = useState(new Date());
   const [fps, setFps] = useState(0);
@@ -100,15 +102,26 @@ export default function StatusBar({
 
   const mode = modeConfig[systemMode];
 
+  const cycleMode = () => {
+    if (!onModeChange) return;
+    const modes: ("live" | "replay" | "training")[] = ["replay", "training", "live"];
+    const idx = modes.indexOf(systemMode);
+    onModeChange(modes[(idx + 1) % modes.length]);
+  };
+
   return (
     <header className="h-9 bg-[#12151A] border-b border-[#22262D] flex items-center px-3 gap-1 text-[10px] font-mono select-none">
       {/* System mode */}
-      <div className="flex items-center gap-1.5 px-2 py-1 bg-[#0E1013] border border-[#22262D] rounded">
+      <button
+        onClick={cycleMode}
+        className="flex items-center gap-1.5 px-2 py-1 bg-[#0E1013] border border-[#22262D] rounded hover:border-[#3A3F46] transition-colors cursor-pointer"
+        title="Click to switch mode"
+      >
         <div className={`w-1.5 h-1.5 rounded-full ${mode.color} ${systemMode === "live" ? "animate-pulse" : ""}`} />
         <span className="text-[#E8EAED] uppercase tracking-widest font-medium text-[9px]">
           {mode.label}
         </span>
-      </div>
+      </button>
 
       <div className="w-px h-4 bg-[#22262D] mx-1" />
 
