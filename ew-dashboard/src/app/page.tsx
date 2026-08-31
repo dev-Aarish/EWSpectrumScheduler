@@ -27,6 +27,7 @@ import AoAPolarPlot from "@/components/AoAPolarPlot";
 import CumulativeDetectionCurve from "@/components/CumulativeDetectionCurve";
 import EmitterFeatureSpace from "@/components/EmitterFeatureSpace";
 import BandEmitterHeatmap from "@/components/BandEmitterHeatmap";
+import InterceptionRatioOverTime from "@/components/InterceptionRatioOverTime";
 
 interface ConfigData {
   config_id: string;
@@ -482,7 +483,18 @@ export default function Dashboard() {
                       emitterLabels={emitterLabels}
                     />
                   </div>
-                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] flex flex-col overflow-hidden" />
+                  <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
+                    <InterceptionRatioOverTime
+                      waterfall={configData.waterfall}
+                      waterfallLabels={configData.waterfall_labels}
+                      schedulerDecisions={configData.scheduler_decisions}
+                      bandStats={configData.band_stats}
+                      emitterTypes={configData.emitter_types ?? []}
+                      nBands={configData.n_bands}
+                      nTimeBins={configData.n_time_bins}
+                      scanStep={scanStep}
+                    />
+                  </div>
                   <div className="bg-[#12151A] border border-[#22262D] rounded-lg h-[320px] col-span-2 flex flex-col overflow-hidden">
                     <PRFHistogram
                       prfData={configData.prf_data}

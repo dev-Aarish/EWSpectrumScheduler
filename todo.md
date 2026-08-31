@@ -113,10 +113,10 @@
 - [ ] Compare multiple runs or hyperparameter settings
 
 ### Interception Ratio Over Time
-- [ ] Running average of successful intercepts as a function of scan steps
-- [ ] Break down by emitter type (threat vs non-threat)
-- [ ] Add target threshold line (e.g., 0.85 from AGENTS.md)
-- [ ] Compare across different scheduler strategies
+- [x] Running average of successful intercepts as a function of scan steps
+- [x] Break down by emitter type (threat vs non-threat)
+- [x] Add target threshold line (e.g., 0.85 from AGENTS.md)
+- [x] Compare across different scheduler strategies
 
 ---
 
